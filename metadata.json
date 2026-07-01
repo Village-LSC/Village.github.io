@@ -1,0 +1,6 @@
+{
+  "name": "Village_ PriceList & Calculator",
+  "description": "Interactive pixel art price list, project builder, and technical specification generator for Village_",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
