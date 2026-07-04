@@ -132,7 +132,7 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
       
       {/* Header with Title and Control Buttons */}
       <div className="w-full flex items-center justify-between mb-2 font-mono">
-        <div className="text-[10px] font-bold text-[#ebd6f7]/60 uppercase tracking-wider flex items-center gap-1.5 select-none">
+        <div className="text-xs font-bold text-[#ebd6f7]/70 uppercase tracking-wider flex items-center gap-1.5 select-none">
           <span className="inline-block w-1.5 h-1.5 bg-purple-400 rounded-sm"></span>
           <span>{lang === 'ru' ? 'Масштаб холста' : 'Canvas Proportions'}</span>
         </div>
@@ -161,7 +161,7 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
           </button>
 
           {/* Zoom Label */}
-          <span className="px-1.5 py-0.5 rounded bg-[#0c0314] border border-purple-500/10 text-[9px] font-bold text-purple-300 select-none">
+          <span className="px-1.5 py-0.5 rounded bg-[#0c0314] border border-purple-500/10 text-xs font-bold text-purple-300 select-none">
             {Math.round(zoom * 100)}%
           </span>
 
@@ -217,7 +217,7 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
       </div>
 
       {/* Subtitle / Stats - Canvas resolution dimension at the bottom behind the grid */}
-      <div className="mt-1.5 w-full flex justify-between items-center text-[9px] font-mono text-purple-400/60 select-none">
+      <div className="mt-1.5 w-full flex justify-between items-center text-xs font-mono text-purple-400/80 select-none">
         <span>
           {lang === 'ru' 
             ? `Масштаб: ${Math.round(zoom * 100)}% | Размер: ${safeW}×${safeH} px` 
@@ -243,7 +243,7 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
                     <span className="w-2 h-2 bg-purple-500 rounded-sm animate-pulse"></span>
                     {lang === 'ru' ? 'Детальный предпросмотр холста' : 'Canvas Closeup Preview'}
                   </h3>
-                  <p className="text-[10px] text-purple-400/80 mt-0.5">
+                  <p className="text-xs text-purple-300 mt-0.5">
                     {lang === 'ru' 
                       ? 'Оцените габариты пиксель-арта на максимальном масштабе. Тяните холст за ЛКМ.' 
                       : 'Examine the pixel art proportions at maximum scale. Drag canvas with mouse.'}
@@ -273,7 +273,7 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
                   </button>
 
                   {/* Scale indicator badge */}
-                  <span className="px-2 py-1 bg-black rounded-lg border border-purple-500/20 text-[10px] font-bold text-purple-300 select-none">
+                  <span className="px-2 py-1 bg-black rounded-lg border border-purple-500/20 text-xs font-bold text-purple-300 select-none">
                     {Math.round(modalZoom * 100)}%
                   </span>
 
@@ -331,7 +331,7 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
               </div>
 
               {/* Modal Footer Stats */}
-              <div className="p-3 bg-[#0c0314] border-t border-[#3d1a56]/80 flex justify-between text-[10px] text-purple-400/60 font-semibold px-5 select-none">
+              <div className="p-3 bg-[#0c0314] border-t border-[#3d1a56]/80 flex justify-between text-xs text-purple-400/80 font-semibold px-5 select-none">
                 <span>{lang === 'ru' ? `Разрешение: ${safeW} × ${safeH} пикселей` : `Resolution: ${safeW} × ${safeH} pixels`}</span>
                 <span>{lang === 'ru' ? `Масштабирование: ${Math.round(modalZoom * 100)}%` : `Scale: ${Math.round(modalZoom * 100)}%`}</span>
                 <span>Ratio: {aspectRatio.toFixed(2)}:1</span>

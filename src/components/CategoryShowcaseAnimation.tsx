@@ -642,7 +642,7 @@ export function CategoryShowcaseAnimation({ catId, lang }: CategoryShowcaseAnima
         <button
           type="button"
           onClick={toggleVisibility}
-          className="flex items-center gap-1.5 px-3 py-1 bg-purple-950/60 border border-purple-400/40 rounded-lg text-[11px] font-bold text-purple-300 hover:text-white hover:bg-purple-900/60 active:scale-95 transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-3 py-1 bg-purple-950/60 border border-purple-400/40 rounded-lg text-xs font-bold text-purple-300 hover:text-white hover:bg-purple-900/60 active:scale-95 transition-all cursor-pointer"
         >
           <Eye size={12} className="stroke-[3]" />
           <span>{lang === 'ru' ? 'Показать' : 'Show'}</span>
@@ -675,7 +675,7 @@ export function CategoryShowcaseAnimation({ catId, lang }: CategoryShowcaseAnima
         {loading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center">
             <div className="w-6 h-6 rounded-full border-2 border-[#c084fc] border-t-transparent animate-spin"></div>
-            <span className="text-[9px] text-[#ebd6f7]/60 font-mono mt-2 tracking-wider">CREATING VORTEX...</span>
+            <span className="text-xs text-[#ebd6f7]/60 font-mono mt-2 tracking-wider">CREATING VORTEX...</span>
           </div>
         ) : (
           <canvas
@@ -691,10 +691,10 @@ export function CategoryShowcaseAnimation({ catId, lang }: CategoryShowcaseAnima
       {/* Info on Right */}
       <div className="flex-1 min-w-0 flex flex-col justify-center text-center sm:text-left pl-2 sm:pl-0 mt-3 sm:mt-0">
         <div className="flex items-center gap-2 justify-center sm:justify-start mb-1">
-          <span className="px-1.5 py-0.5 bg-purple-950/80 border border-purple-500/40 rounded text-[10px] font-mono text-purple-300 font-bold uppercase tracking-wider">
+          <span className="px-1.5 py-0.5 bg-purple-950/80 border border-purple-500/40 rounded text-xs font-mono text-purple-300 font-bold uppercase tracking-wider">
             CAT #0{activeCat.id}
           </span>
-          <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-widest animate-pulse">
+          <span className="text-xs font-mono text-emerald-400 font-bold uppercase tracking-widest animate-pulse">
             {lang === 'ru' ? '● СИНХРОНИЗАЦИЯ' : '● SYNCED'}
           </span>
         </div>
@@ -710,7 +710,7 @@ export function CategoryShowcaseAnimation({ catId, lang }: CategoryShowcaseAnima
         {/* Short bullet tags for compact representation */}
         <div className="mt-2.5 flex flex-wrap gap-1.5 justify-center sm:justify-start">
           {(lang === 'ru' ? activeCat.useCasesRu : activeCat.useCasesEn).slice(0, 3).map((uc, i) => (
-            <span key={i} className="text-[10px] bg-purple-950/40 text-purple-200 border border-purple-500/20 px-2 py-0.5 rounded-md font-semibold capitalize">
+            <span key={i} className="text-xs bg-purple-950/40 text-purple-200 border border-purple-500/20 px-2 py-0.5 rounded-md font-semibold capitalize">
               {uc}
             </span>
           ))}

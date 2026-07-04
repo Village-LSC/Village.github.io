@@ -26,7 +26,8 @@ import {
   Send,
   ArrowUpCircle,
   Mail,
-  X
+  X,
+  EyeOff
 } from 'lucide-react';
 import {
   Language,
@@ -98,11 +99,11 @@ function SquareFrame({
 
       {/* Pricing info situated directly UNDER the square picture frame - widened to match 1.5x dimensions */}
       <div className="mt-4 w-64 sm:w-72 lg:w-80 xl:w-[350px] bg-[#2d143f] rounded-2xl border-2 border-[#3d1a56] p-4 text-xs sm:text-sm space-y-2.5 text-[#ebd6f7] shadow-inner transition-all duration-300 group-hover:border-purple-300 group-hover:shadow-[0_0_20px_rgba(192,132,252,0.25)]">
-        <div className="flex justify-between items-center text-[11px] sm:text-xs font-bold transition-all duration-300">
+        <div className="flex justify-between items-center text-xs sm:text-sm font-bold transition-all duration-300">
           <span className="text-[#ebd6f7]/60 group-hover:text-white/80 uppercase tracking-wider">
             {lang === 'ru' ? 'Цена:' : 'Price:'}
           </span>
-          <span className="font-bold font-mono text-purple-300 group-hover:text-white transition-all">
+          <span className="font-bold font-mono text-purple-300 group-hover:text-white transition-all text-xs sm:text-sm">
             {isMinecraft ? (
               `${formatPrice(basePrice)}`
             ) : (
@@ -112,17 +113,17 @@ function SquareFrame({
         </div>
 
         {!isMinecraft && (
-          <div className="flex justify-between items-center border-t border-[#3d1a56] pt-2 text-[11px] sm:text-xs font-bold transition-all duration-300">
+          <div className="flex justify-between items-center border-t border-[#3d1a56] pt-2 text-xs sm:text-sm font-bold transition-all duration-300">
             <span className="text-[#ebd6f7]/60 group-hover:text-white/80 uppercase tracking-wider text-left max-w-[70%] leading-tight">
               {lang === 'ru' ? 'Максимальный предпочтительный размер:' : 'Maximum preferred size:'}
             </span>
-            <span className="font-bold font-mono text-[#f1e5f8] group-hover:text-white transition-colors shrink-0">
+            <span className="font-bold font-mono text-[#f1e5f8] group-hover:text-white transition-colors shrink-0 text-xs sm:text-sm">
               {maxBaseSize}px
             </span>
           </div>
         )}
 
-        <div className="flex justify-between items-center border-t border-[#3d1a56] pt-2 text-[11px] sm:text-xs text-purple-300 font-bold uppercase tracking-wider transition-all duration-300">
+        <div className="flex justify-between items-center border-t border-[#3d1a56] pt-2 text-xs sm:text-sm text-purple-300 font-bold uppercase tracking-wider transition-all duration-300">
           <span className="group-hover:text-purple-200">{lang === 'ru' ? 'Пример:' : 'Example:'}</span>
           <span className="font-mono text-xs sm:text-sm text-[#f1e5f8] group-hover:text-white transition-colors">
             {exampleSize} ≈ {examplePrice}
@@ -149,14 +150,17 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
     let animationId: number;
     let shimmerPhase = 0;
 
-    // Smoothly animated properties for firefly clustering
+    // Smoothly animated properties for firefly clustering (stored in SCREEN coordinates)
     let currentCX = window.innerWidth / 2;
     let currentCY = window.innerHeight / 2;
     let currentRadius = Math.sqrt(currentCX * currentCX + currentCY * currentCY) * 0.85;
     let currentIntensity = 0.0; // 0.0 (ambient idle gold) to 1.0 (vibrant bright firefly green-gold)
     let currentAvatarIntensity = 0.0; // special black hole effect around avatar
 
-    const cellSize = 4; // High-density fine grid matching the pixel-perfect Discord Quest look
+    // Low-resolution render scale factor.
+    // Scales down the canvas dimensions, reducing the pixel grid calculations by 36x,
+    // while image-rendering: pixelated ensures it scales back up with beautiful crispy retro pixels!
+    const scale = 6;
 
     interface Star {
       x: number;
@@ -168,14 +172,12 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
     const stars: Star[] = [];
     const numStars = 40;
 
-    const generateStars = (width: number, height: number, size: number) => {
+    const generateStars = (width: number, height: number) => {
       stars.length = 0;
       for (let i = 0; i < numStars; i++) {
-        const gridX = Math.floor(Math.random() * (width / size)) * size;
-        const gridY = Math.floor(Math.random() * (height / size)) * size;
         stars.push({
-          x: gridX,
-          y: gridY,
+          x: Math.floor(Math.random() * width),
+          y: Math.floor(Math.random() * height),
           phase: Math.random() * Math.PI * 2,
           speed: 0.03 + Math.random() * 0.05,
           maxOpacity: 0.3 + Math.random() * 0.7
@@ -184,26 +186,26 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
     };
     
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.width = Math.ceil(window.innerWidth / scale);
+      canvas.height = Math.ceil(window.innerHeight / scale);
       
       // Keep center coordinate in sync on resize
-      currentCX = canvas.width / 2;
-      currentCY = canvas.height / 2;
+      currentCX = window.innerWidth / 2;
+      currentCY = window.innerHeight / 2;
       currentRadius = Math.sqrt(currentCX * currentCX + currentCY * currentCY) * 0.85;
 
-      generateStars(canvas.width, canvas.height, cellSize);
+      generateStars(canvas.width, canvas.height);
     };
     
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // 4x4 classic Bayer ordered dither matrix
+    // 4x4 classic Bayer ordered dither matrix, pre-divided by 16 for blistering performance
     const bayer = [
-      [0, 8, 2, 10],
-      [12, 4, 14, 6],
-      [3, 11, 1, 9],
-      [15, 7, 13, 5]
+      [0 / 16, 8 / 16, 2 / 16, 10 / 16],
+      [12 / 16, 4 / 16, 14 / 16, 6 / 16],
+      [3 / 16, 11 / 16, 1 / 16, 9 / 16],
+      [15 / 16, 7 / 16, 13 / 16, 5 / 16]
     ];
 
     let isHovered = false;
@@ -245,14 +247,12 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
     window.addEventListener('mouseout', onMouseOut);
 
     const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cols = canvas.width;
+      const rows = canvas.height;
       
-      const cols = Math.ceil(canvas.width / cellSize);
-      const rows = Math.ceil(canvas.height / cellSize);
-      
-      // Idle target position (center of screen)
-      let targetCX = canvas.width / 2;
-      let targetCY = canvas.height / 2;
+      // Idle target position (center of screen, in screen coordinates)
+      let targetCX = window.innerWidth / 2;
+      let targetCY = window.innerHeight / 2;
       const maxDist = Math.sqrt(targetCX * targetCX + targetCY * targetCY);
       let targetRadius = maxDist * 0.85;
       let targetIntensity = 0.0;
@@ -282,18 +282,18 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
       // Animate shimmer speed - slightly faster and more energetic when clustered
       shimmerPhase += 0.008 + (0.012 * currentIntensity) + (0.02 * currentAvatarIntensity);
 
-      // Fill rich cozy deep space-purple background
+      // Fill rich cozy deep space-purple background (no clearRect needed, fillRect completely overwrites)
       ctx.fillStyle = '#0d0614'; 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw Twinkling Space Stars as perfect white pixel cells matching dither cellSize
+      // Draw Twinkling Space Stars as perfect 1x1 pixel cells matching scaled resolution
       stars.forEach(star => {
         star.phase += star.speed;
         
         // Relocate star when it fades out to a minimum in its sine cycle (different locations)
         if (Math.sin(star.phase) < -0.98) {
-          star.x = Math.floor(Math.random() * (canvas.width / cellSize)) * cellSize;
-          star.y = Math.floor(Math.random() * (canvas.height / cellSize)) * cellSize;
+          star.x = Math.floor(Math.random() * canvas.width);
+          star.y = Math.floor(Math.random() * canvas.height);
           star.speed = 0.03 + Math.random() * 0.05;
           star.maxOpacity = 0.3 + Math.random() * 0.7;
           star.phase = -Math.PI / 2 + 0.3; // Start fade back in, avoiding immediate relocation re-trigger
@@ -301,47 +301,65 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
 
         const opacity = Math.max(0.0, star.maxOpacity * (0.5 + 0.5 * Math.sin(star.phase)));
         ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
-        ctx.fillRect(star.x, star.y, cellSize, cellSize);
+        ctx.fillRect(star.x, star.y, 1, 1);
       });
 
       // Add a subtle organic breathing jitter to the center point so it feels like living fireflies!
       const jitterX = Math.sin(shimmerPhase * 2.2) * (15 * currentIntensity);
       const jitterY = Math.cos(shimmerPhase * 1.6) * (15 * currentIntensity);
       
-      const activeCX = currentCX + jitterX;
-      const activeCY = currentCY + jitterY;
+      // Convert screen coordinate values to the low-res scaled canvas grid
+      const activeCX = (currentCX + jitterX) / scale;
+      const activeCY = (currentCY + jitterY) / scale;
+      const currentRadiusScaled = currentRadius / scale;
+
+      const maxDistToCalculateRadialSq = (currentRadiusScaled * 1.15) * (currentRadiusScaled * 1.15);
 
       for (let r = 0; r < rows; r++) {
+        const y = r;
+        const bayerRow = bayer[r % 4];
+        const isRowEven = r % 2 === 0;
+        const dy = y - activeCY;
+        const dySq = dy * dy;
+
         for (let c = 0; c < cols; c++) {
-          const x = c * cellSize;
-          const y = r * cellSize;
+          const x = c;
           
           // Distance from the active swarm center
-          const dx = (x + cellSize / 2) - activeCX;
-          const dy = (y + cellSize / 2) - activeCY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
+          const dx = x - activeCX;
+          const distSq = dx * dx + dySq;
 
-          // Radial value calculation
-          const radialVal = Math.max(0, Math.min(1.1, 1.15 - (dist / currentRadius)));
+          const threshold = bayerRow[c % 4];
+          const texture = (isRowEven ? 0.03 : 0) + ((c & 1) === 0 ? 0.03 : 0);
+
+          const isOutside = distSq > maxDistToCalculateRadialSq;
           
-          // Slow diagonal wave ripple (matching the classic Discord quest checkin/checkpoint animation style)
+          // Optimization: If outside active radius, max possible value is 0.12 (from wave ripple max).
+          // If threshold >= 0.18, this cell can never exceed the threshold. Skip immediately.
+          if (isOutside && threshold >= 0.18) {
+            continue;
+          }
+
+          let dist = 0;
+          let radialVal = 0;
+          if (!isOutside) {
+            // Fast octagonal distance approximation (No Math.sqrt inside hot path!)
+            const absX = dx < 0 ? -dx : dx;
+            const absY = dy < 0 ? -dy : dy;
+            dist = absX > absY ? absX + 0.4 * absY : absY + 0.4 * absX;
+            radialVal = Math.max(0, Math.min(1.1, 1.15 - (dist / currentRadiusScaled)));
+          }
+          
+          // Slow diagonal wave ripple (matching the classic Discord quest style)
           const diagonalIndex = c - r;
           const wave = Math.sin(diagonalIndex * 0.045 - shimmerPhase) * 0.12;
           
           const val = Math.max(0, Math.min(1, radialVal + wave));
 
-          // Bayer 4x4 threshold lookup
-          const threshold = bayer[r % 4][c % 4] / 16;
-          
-          // Halftone-like screen scanlines (very subtle retro touch)
-          const texture = ((r % 2 === 0) ? 0.03 : 0) + ((c % 2 === 0) ? 0.03 : 0);
-
           if (val + texture > threshold) {
             // Determine cell color
-            // Ambient base color: beautiful mystic purple (139, 92, 246)
-            // On hover, we blend the bright neon fuchsia/purple with the original golden-yellow (251, 191, 36)
-            const hoverInfluence = currentIntensity * Math.max(0, 1 - dist / (currentRadius * 1.2));
-            const avatarInfluence = currentAvatarIntensity * Math.max(0, 1 - dist / (currentRadius * 1.1));
+            const hoverInfluence = isOutside ? 0 : currentIntensity * Math.max(0, 1 - dist / (currentRadiusScaled * 1.2));
+            const avatarInfluence = isOutside ? 0 : currentAvatarIntensity * Math.max(0, 1 - dist / (currentRadiusScaled * 1.1));
             let aVal = 0.07 + (0.22 - 0.07) * currentIntensity;
             
             let rVal = 139;
@@ -349,7 +367,6 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
             let bVal = 246;
 
             if (hoverInfluence > 0) {
-              // Checkerboard pattern blends the new bright purple and the old gold hue
               if ((c + r) % 2 === 0) {
                 // Classic warm golden-amber ("старый оттенок")
                 rVal = Math.round(251 * hoverInfluence + 139 * (1 - hoverInfluence));
@@ -364,7 +381,6 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
             }
 
             if (avatarInfluence > 0) {
-              // Shimmer between light purple (225, 180, 255) and pitch black (10, 3, 20), like a black hole
               const blackHoleCycle = Math.sin(shimmerPhase * 2.5);
               const blackHoleBlend = 0.5 + 0.5 * blackHoleCycle; // 0 to 1
               
@@ -376,13 +392,12 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
               gVal = Math.round(holeG * avatarInfluence + gVal * (1 - avatarInfluence));
               bVal = Math.round(holeB * avatarInfluence + bVal * (1 - avatarInfluence));
 
-              // Accretion disk opacity fluctuations: heavy dark to glowing purple dither
               const targetA = 0.12 + 0.45 * blackHoleBlend; 
               aVal = aVal * (1 - avatarInfluence) + targetA * avatarInfluence;
             }
 
             ctx.fillStyle = `rgba(${rVal}, ${gVal}, ${bVal}, ${aVal})`;
-            ctx.fillRect(x, y, cellSize, cellSize);
+            ctx.fillRect(x, y, 1, 1);
           }
         }
       }
@@ -403,7 +418,8 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0"
+      className="fixed inset-0 pointer-events-none z-0 w-full h-full"
+      style={{ imageRendering: 'pixelated' }}
     />
   );
 }
@@ -459,6 +475,20 @@ export default function App() {
   const [lang, setLang] = useState<Language>('ru');
   const [currency, setCurrency] = useState<Currency>('rub');
   const [usdRate, setUsdRate] = useState<number>(92); // Editable exchange rate, pre-populated with 92 RUB per USD
+
+  // Animated Background Enable State
+  const [isBgEnabled, setIsBgEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('isBgEnabled');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const toggleBg = () => {
+    setIsBgEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem('isBgEnabled', String(next));
+      return next;
+    });
+  };
 
   // Sprite Items State in Calculator
   const [sprites, setSprites] = useState<SpriteItemState[]>([
@@ -1400,7 +1430,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#1c0d2b] text-[#fbf7ff] font-sans antialiased pb-20 selection:bg-[#c084fc] selection:text-[#1c0d2b] relative overflow-x-hidden">
       {/* Interactive Cursor Glow with Retro Dithering */}
-      <InteractiveDitherBackground mousePos={mousePos} />
+      {isBgEnabled && <InteractiveDitherBackground mousePos={mousePos} />}
 
       {/* Top Controls / Nav Bar */}
       <div className="relative z-10 max-w-4xl mx-auto px-4 pt-6 flex flex-wrap justify-between items-center gap-4">
@@ -1425,6 +1455,25 @@ export default function App() {
             <>
               <VolumeX className="w-4 h-4 text-rose-400 shrink-0" />
               <span className="font-bold text-purple-400/80">BGM: {lang === 'ru' ? 'ВЫКЛ' : 'OFF'}</span>
+            </>
+          )}
+        </button>
+
+        {/* Animated Background Toggle Widget */}
+        <button
+          onClick={toggleBg}
+          className={`flex items-center gap-2 bg-[#2d143f] text-[#ebd6f7] px-4 py-2 rounded-xl border-2 border-[#180a24] shadow-md text-sm font-semibold cursor-pointer transition-all active:scale-95 hover:border-purple-400 select-none`}
+          title={isBgEnabled ? (lang === 'ru' ? 'Выключить анимацию фона' : 'Turn Background Animation Off') : (lang === 'ru' ? 'Включить анимацию фона' : 'Turn Background Animation On')}
+        >
+          {isBgEnabled ? (
+            <>
+              <Sparkles className="w-4 h-4 text-yellow-400 animate-pulse shrink-0" />
+              <span className="font-bold">{lang === 'ru' ? 'ФОН: ВКЛ' : 'BG: ON'}</span>
+            </>
+          ) : (
+            <>
+              <EyeOff className="w-4 h-4 text-rose-400 shrink-0" />
+              <span className="font-bold text-purple-400/80">{lang === 'ru' ? 'ФОН: ВЫКЛ' : 'BG: OFF'}</span>
             </>
           )}
         </button>
@@ -2253,7 +2302,7 @@ export default function App() {
                                         : 'Ultimate precision, manual sub-pixel editing, deep contrast shading, and highly polished style.'}
                                     </li>
                                   </ul>
-                                  <p className="text-[10px] text-stone-500 border-t border-white/5 pt-2">
+                                  <p className="text-xs text-stone-300 border-t border-white/10 pt-2">
                                     {lang === 'ru'
                                       ? 'Зачем это сделано? Разная сложность арта требует разного количества времени художника на ручную полировку, чистку «шума» и подбор палитр.'
                                       : 'Why was this introduced? Different levels of art complexity require varying amounts of the artist\'s time for manual cleanup, sub-pixel placement, and palette polishing.'}
@@ -2451,7 +2500,7 @@ export default function App() {
 
                     {/* Individual sprite cost box */}
                     <div className="mt-5 bg-[#12051d]/60 p-3.5 rounded-xl border border-[#3d1a56] flex flex-wrap justify-between items-center gap-2">
-                      <span className="text-[11px] text-[#ebd6f7]/60 font-mono">
+                      <span className="text-xs text-[#ebd6f7]/80 font-mono">
                         {t.spriteAutoCalcNote}
                       </span>
                       <div className="text-sm font-bold text-[#f7f5ef] bg-purple-950/30 px-3.5 py-1.5 rounded-lg border border-purple-500/20 shadow-inner">
@@ -2777,7 +2826,7 @@ export default function App() {
                         {lang === 'ru' ? 'Улучшенная скидка 75% действует на каждый последующий ассет.' : 'An upgraded 75% discount applies to each subsequent asset.'}
                       </li>
                     </ul>
-                    <div className="pt-2 border-t border-white/5 text-[10px] text-stone-500 font-mono">
+                    <div className="pt-2 border-t border-white/10 text-xs text-stone-300 font-mono">
                       {lang === 'ru'
                         ? 'При превышении лимита в 100 позиций скидка отключается из-за наценки за объем.'
                         : 'If the 100-position limit is exceeded, the wholesale discount is disabled in favor of the volume surcharge.'}
