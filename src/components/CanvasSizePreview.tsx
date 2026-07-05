@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { ZoomIn, ZoomOut, Maximize2, RotateCcw, X } from 'lucide-react';
 
@@ -12,6 +13,11 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
   const [zoom, setZoom] = useState(1.0); // 0.5 to 5.0
   const [resetKey, setResetKey] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Modal zoom and reset states
   const [modalZoom, setModalZoom] = useState(2.0); // bigger default for closeup
@@ -229,7 +235,7 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
           className="relative rounded border-2 border-purple-500/40 shadow-[0_0_15px_rgba(139,92,246,0.15)] shrink-0 flex items-center justify-center select-none cursor-grab active:cursor-grabbing"
           style={{
             backgroundImage: `conic-gradient(from 0deg, #12051d 0.25turn, #200833 0.25turn 0.5turn, #12051d 0.5turn 0.75turn, #200833 0.75turn)`,
-            backgroundSize: `${200 / safeW}% ${200 / safeH}%`,
+            backgroundSize: `16px 16px`,
             imageRendering: 'pixelated'
           }}
         />
@@ -246,15 +252,23 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
       </div>
 
       {/* Portal/Modalcloseup View */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-[120] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-4xl bg-[#12051d] border border-purple-500/30 rounded-2xl overflow-hidden flex flex-col shadow-[0_0_50px_rgba(139,92,246,0.3)] font-mono text-[#ebd6f7]"
+      {mounted && typeof document !== 'undefined' && document.body && createPortal(
+        <AnimatePresence>
+          {isModalOpen && (
+            <div 
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setIsModalOpen(false);
+                }
+              }}
+              className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 cursor-zoom-out"
             >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="w-full max-w-4xl bg-[#12051d] border border-purple-500/30 rounded-2xl overflow-hidden flex flex-col shadow-[0_0_50px_rgba(139,92,246,0.3)] font-mono text-[#ebd6f7] cursor-default"
+              >
               {/* Modal Header */}
               <div className="p-4 border-b border-[#3d1a56]/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#0c0314]">
                 <div>
@@ -325,11 +339,11 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
-                className="w-full h-[60vh] bg-[#05010a] relative overflow-hidden flex items-center justify-center p-8 touch-none"
+                className="w-full h-[50vh] sm:h-[60vh] max-h-[500px] bg-[#05010a] relative overflow-hidden flex items-center justify-center p-8 touch-none"
               >
                 {/* Tech blue-grid background pattern */}
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.04)_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>
-
+ 
                 {/* Big Draggable Checkered Canvas */}
                 <motion.div
                   id="modal-canvas-box"
@@ -344,7 +358,7 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
                   className="relative rounded-lg border-2 border-purple-500/60 shadow-[0_0_35px_rgba(139,92,246,0.25)] flex items-center justify-center select-none cursor-grab active:cursor-grabbing shrink-0"
                   style={{
                     backgroundImage: `conic-gradient(from 0deg, #12051d 0.25turn, #200833 0.25turn 0.5turn, #12051d 0.5turn 0.75turn, #200833 0.75turn)`,
-                    backgroundSize: `${200 / safeW}% ${200 / safeH}%`,
+                    backgroundSize: `16px 16px`,
                     imageRendering: 'pixelated'
                   }}
                 />
@@ -358,8 +372,10 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
               </div>
             </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }
