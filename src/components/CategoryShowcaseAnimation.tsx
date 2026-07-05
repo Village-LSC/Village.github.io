@@ -694,9 +694,6 @@ export function CategoryShowcaseAnimation({ catId, lang }: CategoryShowcaseAnima
           <span className="px-1.5 py-0.5 bg-purple-950/80 border border-purple-500/40 rounded text-xs font-mono text-purple-300 font-bold uppercase tracking-wider">
             CAT #0{activeCat.id}
           </span>
-          <span className="text-xs font-mono text-emerald-400 font-bold uppercase tracking-widest animate-pulse">
-            {lang === 'ru' ? '● СИНХРОНИЗАЦИЯ' : '● SYNCED'}
-          </span>
         </div>
 
         <h4 className="font-display text-[#ebd6f7] text-sm sm:text-base font-black uppercase tracking-tight leading-tight">

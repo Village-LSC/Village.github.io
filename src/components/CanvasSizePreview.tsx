@@ -112,18 +112,37 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
   const modalContainerRef = useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
-    const el = modalContainerRef.current;
-    if (!el) return;
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isModalOpen]);
+
+  React.useEffect(() => {
+    if (!isModalOpen) return;
 
     const preventDefaultWheel = (e: WheelEvent) => {
+      // Always prevent default scroll behavior inside/around the modal to disable background page scroll entirely
       e.preventDefault();
-      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-      setModalZoom(prev => Math.min(10.0, Math.max(0.5, Number((prev * zoomFactor).toFixed(1)))));
+
+      // Only zoom if hovering directly over the canvas box inside the modal
+      const canvasBox = document.getElementById('modal-canvas-box');
+      if (canvasBox) {
+        const isOverCanvas = canvasBox === e.target || canvasBox.contains(e.target as Node);
+        if (isOverCanvas) {
+          const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+          setModalZoom(prev => Math.min(10.0, Math.max(0.5, Number((prev * zoomFactor).toFixed(1)))));
+        }
+      }
     };
 
-    el.addEventListener('wheel', preventDefaultWheel, { passive: false });
+    window.addEventListener('wheel', preventDefaultWheel, { passive: false });
     return () => {
-      el.removeEventListener('wheel', preventDefaultWheel);
+      window.removeEventListener('wheel', preventDefaultWheel);
     };
   }, [isModalOpen]);
 
@@ -313,6 +332,7 @@ export function CanvasSizePreview({ width, height, lang }: CanvasSizePreviewProp
 
                 {/* Big Draggable Checkered Canvas */}
                 <motion.div
+                  id="modal-canvas-box"
                   key={modalResetKey}
                   drag
                   dragConstraints={modalContainerRef}

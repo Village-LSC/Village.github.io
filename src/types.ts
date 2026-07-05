@@ -286,17 +286,17 @@ export const CATEGORIES_LIST: CategoryData[] = [
     descriptionRu: 'Любые нестандартные, специфические или комплексные арт-задачи.',
     descriptionEn: 'Any non-standard, highly specific, or complex pixel art requests.',
     pointsRu: [
-      'Разработка кастомных графических форматов, эффектов частиц, текстур-паков и концепт-арта.'
+      'Разработка кастомных графических форматов, эффектов частиц, Картин и концепт-арта.'
     ],
     pointsEn: [
-      'Custom graphic configurations, particle effects, game texture-packs, and pixel concepts.'
+      'Custom graphic configurations, particle effects, Paintings, and pixel concepts.'
     ],
     basePrice: 1000,
     pixelPrice: 8,
     maxBaseSize: 512,
     supportsAnimation: true,
-    useCasesRu: ['Текстур-паки', 'эффекты частиц', 'кастомные концепты'],
-    useCasesEn: ['Texture packs', 'particle states', 'custom pixel concepts'],
+    useCasesRu: ['Картины', 'эффекты частиц', 'кастомные концепты'],
+    useCasesEn: ['Paintings', 'particle states', 'custom pixel concepts'],
     formulaHelpRu: 'Базовая ставка 1000 ₽ + 8 ₽ за пиксель размера.',
     formulaHelpEn: 'Base rate 1000 ₽ + 8 ₽ per pixel of size.',
     examplesRu: [

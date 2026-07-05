@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, ReactNode } from 'react';
+import React, { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Globe,
@@ -27,7 +27,14 @@ import {
   ArrowUpCircle,
   Mail,
   X,
-  EyeOff
+  EyeOff,
+  Clock,
+  Sword,
+  Box,
+  Layout,
+  Tv,
+  Gamepad2,
+  Image as ImageIcon
 } from 'lucide-react';
 import {
   Language,
@@ -40,6 +47,110 @@ import {
 import { PixelMorphAnimation } from './components/PixelMorphAnimation';
 import { CategoryShowcaseAnimation } from './components/CategoryShowcaseAnimation';
 import { CanvasSizePreview } from './components/CanvasSizePreview';
+
+function SeedParticleBurst() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = canvas.offsetWidth);
+    let height = (canvas.height = canvas.offsetHeight);
+
+    const handleResize = () => {
+      if (canvas) {
+        width = canvas.width = canvas.offsetWidth;
+        height = canvas.height = canvas.offsetHeight;
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    interface SparkParticle {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+      alpha: number;
+      decay: number;
+      sparkleSpeed: number;
+      sparklePhase: number;
+    }
+
+    const particles: SparkParticle[] = [];
+    const count = 75;
+
+    for (let i = 0; i < count; i++) {
+      const x = Math.random() * width;
+      const y = height + 10 - Math.random() * 30; // start near bottom
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.3; // vertical cone
+      const speed = 1.5 + Math.random() * 4.5;
+      
+      particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 1 + Math.random() * 2.5,
+        alpha: 0.9 + Math.random() * 0.1,
+        decay: 0.008 + Math.random() * 0.012,
+        sparkleSpeed: 0.05 + Math.random() * 0.1,
+        sparklePhase: Math.random() * Math.PI * 2,
+      });
+    }
+
+    let frame = 0;
+    const render = () => {
+      frame++;
+      ctx.clearRect(0, 0, width, height);
+
+      let active = false;
+      particles.forEach((p) => {
+        if (p.alpha > 0) {
+          active = true;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy -= 0.035; // anti-gravity float up faster
+          p.vx *= 0.97;  // friction
+          p.alpha -= p.decay;
+
+          if (p.alpha < 0) p.alpha = 0;
+
+          const currentAlpha = p.alpha * (0.5 + Math.sin(frame * p.sparkleSpeed + p.sparklePhase) * 0.5);
+
+          // Outer glowing shadow
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(235, 214, 247, ${currentAlpha * 0.35})`;
+          ctx.fill();
+
+          // Core bright white sparkle particle
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${currentAlpha})`;
+          ctx.fill();
+        }
+      });
+
+      if (active) {
+        animationFrameId = requestAnimationFrame(render);
+      }
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-30" />;
+}
 
 interface SquareFrameProps {
   imagePath: string;
@@ -520,6 +631,7 @@ export default function App() {
   const [copied, setCopied] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<boolean>(false);
   const [spriteCounter, setSpriteCounter] = useState<number>(1);
+  const [expandedSprites, setExpandedSprites] = useState<{ [key: number]: boolean }>({ 1: true });
 
   // Active expanded help cards per sprite block to show formulas
   const [activeHelp, setActiveHelp] = useState<{ [key: string]: boolean }>({});
@@ -527,9 +639,121 @@ export default function App() {
   // Interactive Terms of Collaboration states
   const [attributionCopied, setAttributionCopied] = useState<boolean>(false);
 
+  const collapsedSprites = useMemo(() => sprites.filter(s => expandedSprites[s.id] === false), [sprites, expandedSprites]);
+  const expandedSpritesList = useMemo(() => sprites.filter(s => expandedSprites[s.id] !== false), [sprites, expandedSprites]);
+
   // Scroll & Social states
   const [showScrollBtn, setShowScrollBtn] = useState<boolean>(false);
   const [showSocialsDropdown, setShowSocialsDropdown] = useState<boolean>(false);
+
+  // Configuration seed states
+  const [pastedSeed, setPastedSeed] = useState<string>('');
+  const [seedError, setSeedError] = useState<string | null>(null);
+  const [seedSuccess, setSeedSuccess] = useState<boolean>(false);
+  const [seedCopied, setSeedCopied] = useState<boolean>(false);
+  const [justLoadedFromSeedIds, setJustLoadedFromSeedIds] = useState<number[]>([]);
+  const [isNoteExpanded, setIsNoteExpanded] = useState<boolean>(false);
+
+  // Generate configuration seed dynamically on state change
+  const generatedSeed = useMemo(() => {
+    try {
+      const data = {
+        v: 1,
+        s: speedRate,
+        items: sprites.map(s => ({
+          c: s.categoryId,
+          w: s.width,
+          h: s.height,
+          co: s.countOrig,
+          cv: s.countVar,
+          f: s.frames,
+          q: s.quality === 'best' ? 'b' : s.quality === 'medium' ? 'm' : 'o',
+          ha: s.hasAnimation,
+          at: s.animType === 'complex' ? 'c' : s.animType === 'simple' ? 'i' : 's',
+          d: s.description
+        }))
+      };
+      const json = JSON.stringify(data);
+      const utf8Safe = unescape(encodeURIComponent(json));
+      return btoa(utf8Safe);
+    } catch (e) {
+      console.error('Error generating seed:', e);
+      return '';
+    }
+  }, [sprites, speedRate]);
+
+  // Decode and apply a configuration seed to the calculator state
+  const applySeed = (seedStr: string) => {
+    setSeedError(null);
+    setSeedSuccess(false);
+    if (!seedStr || !seedStr.trim()) {
+      setSeedError(lang === 'ru' ? 'Введите код сида.' : 'Please enter a seed code.');
+      return;
+    }
+    try {
+      const trimmed = seedStr.trim();
+      const decodedUtf8 = decodeURIComponent(escape(atob(trimmed)));
+      const data = JSON.parse(decodedUtf8);
+      
+      if (data.v !== 1) {
+        setSeedError(lang === 'ru' ? 'Неверная версия сида.' : 'Invalid seed version.');
+        return;
+      }
+      
+      if (typeof data.s === 'number') {
+        setSpeedRate(data.s);
+      }
+      
+      if (Array.isArray(data.items)) {
+        const loadedSprites: SpriteItemState[] = data.items.map((item: any, idx: number) => {
+          const qStr = item.q === 'b' ? 'best' : item.q === 'm' ? 'medium' : 'optimal';
+          const atStr = item.at === 'c' ? 'complex' : item.at === 'i' ? 'simple' : 'static';
+          return {
+            id: Date.now() + idx, // unique id
+            categoryId: String(item.c || '1'),
+            width: Number(item.w ?? 32),
+            height: Number(item.h ?? 32),
+            countOrig: Number(item.co ?? 1),
+            countVar: Number(item.cv ?? 0),
+            frames: Number(item.f ?? 1),
+            quality: qStr as 'optimal' | 'medium' | 'best',
+            hasAnimation: Boolean(item.ha),
+            animType: atStr as 'static' | 'simple' | 'complex',
+            description: String(item.d || ''),
+            templateSize: ''
+          };
+        });
+        
+        if (loadedSprites.length > 0) {
+          const loadedIds = loadedSprites.map(s => s.id);
+          setJustLoadedFromSeedIds(loadedIds);
+          
+          // Auto-expand all loaded sprites
+          const expandedMap: { [key: number]: boolean } = {};
+          loadedIds.forEach(id => {
+            expandedMap[id] = true;
+          });
+          setExpandedSprites(expandedMap);
+
+          setSprites(loadedSprites);
+          setSeedSuccess(true);
+          setPastedSeed('');
+          
+          setTimeout(() => setSeedSuccess(false), 3000);
+          setTimeout(() => {
+            setJustLoadedFromSeedIds([]);
+          }, 3500);
+        } else {
+          setSeedError(lang === 'ru' ? 'В сиде нет позиций ассетов.' : 'Seed has no assets.');
+        }
+      } else {
+        setSeedError(lang === 'ru' ? 'Неверный формат сида.' : 'Invalid seed format.');
+      }
+    } catch (e) {
+      console.error(e);
+      setSeedError(lang === 'ru' ? 'Ошибка декодирования сида. Проверьте правильность кода.' : 'Error decoding seed. Please check the code.');
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -915,9 +1139,9 @@ export default function App() {
         if (!isLargeSpecification) {
           let discountPercent = 0;
           if (cumulativeSprites > 50) {
-            discountPercent = 75;
-          } else if (cumulativeSprites > 10) {
             discountPercent = 50;
+          } else if (cumulativeSprites > 10) {
+            discountPercent = 25;
           }
           if (discountPercent > 0) {
             itemOrigDiscount += res.animatedSinglePrice * (discountPercent / 100);
@@ -934,9 +1158,9 @@ export default function App() {
         if (!isLargeSpecification) {
           let discountPercent = 0;
           if (cumulativeSprites > 50) {
-            discountPercent = 75;
-          } else if (cumulativeSprites > 10) {
             discountPercent = 50;
+          } else if (cumulativeSprites > 10) {
+            discountPercent = 25;
           }
           if (discountPercent > 0) {
             itemVarDiscount += res.singleVarPrice * (discountPercent / 100);
@@ -1074,6 +1298,52 @@ export default function App() {
         quality: 'optimal'
       }
     ]);
+    setExpandedSprites(prev => ({ ...prev, [nextId]: true }));
+  };
+
+  // Add Sprite block with preselected Category
+  const addSpriteBlockWithCategory = (catId: string) => {
+    const nextId = spriteCounter + 1;
+    setSpriteCounter(nextId);
+    
+    // Choose appropriate defaults for category
+    let defaultWidth = 16;
+    let defaultHeight = 16;
+    if (catId === '2') {
+      defaultWidth = 32;
+      defaultHeight = 32;
+    } else if (catId === '4') {
+      defaultWidth = 320;
+      defaultHeight = 180;
+    } else if (catId === '6') {
+      defaultWidth = 256;
+      defaultHeight = 144;
+    } else if (catId === '7') {
+      defaultWidth = 64;
+      defaultHeight = 64;
+    }
+
+    setSprites(prev => [
+      ...prev,
+      {
+        id: nextId,
+        categoryId: catId,
+        width: defaultWidth,
+        height: defaultHeight,
+        skinType: '1',
+        countOrig: 1,
+        countVar: 0,
+        hasAnimation: false,
+        frameMode: 'direct',
+        framesDirect: 1,
+        animDuration: 3,
+        animDelay: 0.5,
+        description: '',
+        templateSize: String(defaultWidth),
+        quality: 'optimal'
+      }
+    ]);
+    setExpandedSprites(prev => ({ ...prev, [nextId]: true }));
   };
 
   // Add completely random sprite block for fun!
@@ -1268,6 +1538,7 @@ export default function App() {
         quality: 'optimal'
       }
     ]);
+    setExpandedSprites(prev => ({ ...prev, [nextId]: true }));
   };
 
   // Remove Sprite Block
@@ -1376,6 +1647,12 @@ export default function App() {
         tzText += `The total cost is ${formatPrice(orderCalculations.finalPriceRub)}.\n`;
         tzText += `Prepayment (${orderCalculations.prepayPercent}%) is ${formatPrice(orderCalculations.prepayAmountRub)}.\n`;
       }
+    }
+    tzText += `==================================================\n`;
+    if (lang === 'ru') {
+      tzText += `СИД КОНФИГУРАЦИИ ЗАКАЗА (скопируйте этот код для восстановления или перешлите разработчику):\n${generatedSeed}\n`;
+    } else {
+      tzText += `ORDER CONFIGURATION SEED (copy this code to restore your order or send to developer):\n${generatedSeed}\n`;
     }
     tzText += `==================================================\n`;
     tzText += `${t.tzUrlNote}`;
@@ -1645,6 +1922,29 @@ export default function App() {
               {t.termsTitle}
             </h2>
           </div>
+
+          {/* Highlighted Execution Times Notification */}
+          <div className="mb-6 bg-purple-950/40 border-2 border-purple-500/30 rounded-2xl p-4 sm:p-5 relative z-10 flex flex-col sm:flex-row items-start gap-4 shadow-inner">
+            <div className="w-10 h-10 rounded-xl bg-purple-900/50 border border-purple-400/30 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-purple-300 stroke-[2.5]" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm sm:text-base font-bold text-purple-300 uppercase tracking-wider">
+                {lang === 'ru' ? 'Сроки выполнения заказа (Важная информация)' : 'Order Execution Deadlines (Important Info)'}
+              </h4>
+              <p className="text-xs sm:text-sm text-[#ebd6f7]/90 font-semibold leading-relaxed">
+                {lang === 'ru' ? (
+                  <>
+                    Сроки работы определяются <strong>строго индивидуально</strong> для каждого проекта. Указывать свои собственные желаемые сроки выполнения в ТЗ <strong>нельзя</strong>. Обратите внимание: <strong>минимальный срок выполнения любого заказа составляет 14 дней</strong>.
+                  </>
+                ) : (
+                  <>
+                    Turnaround times are determined <strong>strictly on an individual basis</strong> for each project. Specifying your own desired deadlines in the specification is <strong>not allowed</strong>. Please note: the <strong>absolute minimum execution time for any order is 14 days</strong>.
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
  
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
             {/* Left Column: What I Offer */}
@@ -1792,47 +2092,188 @@ export default function App() {
 
           {/* List of Sprite Blocks */}
           <div className="space-y-6">
+            {/* Collapsed Assets Grid (flowing left to right like a table of small buttons) */}
+            <AnimatePresence>
+              {collapsedSprites.length > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="bg-[#190729] border-2 border-[#3d1a56]/60 rounded-2xl p-4 sm:p-5 relative overflow-hidden"
+                >
+                  <div className="absolute inset-0.5 border border-[#ebd6f7]/5 rounded-xl pointer-events-none"></div>
+                  <div className="text-xs font-bold text-purple-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Layers className="w-3.5 h-3.5 text-purple-300 animate-pulse" />
+                    <span>{lang === 'ru' ? 'Свернутые позиции (кликните для раскрытия):' : 'Collapsed items (click to expand):'}</span>
+                  </div>
+                  
+                  {/* Fixed-size responsive grid with 5 columns on desktop, wrapping to multiple rows downwards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {collapsedSprites.map((sprite) => {
+                      const idx = sprites.findIndex(s => s.id === sprite.id);
+                      const activeCat = CATEGORIES_LIST.find(c => c.id === sprite.categoryId) || CATEGORIES_LIST[0];
+                      
+                      let IconComponent = Plus;
+                      if (activeCat.id === '1') IconComponent = Sword;
+                      else if (activeCat.id === '2') IconComponent = Box;
+                      else if (activeCat.id === '3') IconComponent = Layout;
+                      else if (activeCat.id === '4') IconComponent = Tv;
+                      else if (activeCat.id === '5') IconComponent = Gamepad2;
+                      else if (activeCat.id === '6') IconComponent = ImageIcon;
+                      else if (activeCat.id === '7') IconComponent = User;
+                      else if (activeCat.id === '8') IconComponent = Layers;
+
+                      return (
+                        <motion.div
+                          key={sprite.id}
+                          layout
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.9, opacity: 0 }}
+                          className="bg-[#2d143f] hover:bg-purple-900/40 border border-[#3d1a56] hover:border-purple-400/80 rounded-xl overflow-hidden shadow-md transition-all flex items-center justify-between"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setExpandedSprites(prev => ({ ...prev, [sprite.id]: true }))}
+                            className="flex items-center gap-3 px-3 py-3 text-xs sm:text-sm font-bold text-[#ebd6f7] hover:text-white transition-all cursor-pointer text-left min-w-0 flex-1 group"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-[#190729] flex items-center justify-center border border-[#3d1a56] group-hover:border-purple-400/40 shrink-0">
+                              <IconComponent className="w-4 h-4 text-purple-300" />
+                            </div>
+                            <div className="min-w-0 flex-1 leading-tight">
+                              <span className="font-mono text-purple-400 block text-[10px] uppercase font-bold mb-0.5">#{idx + 1}</span>
+                              <span className="text-xs text-[#ebd6f7] font-bold block leading-snug break-words hyphens-auto">
+                                {lang === 'ru' ? activeCat.nameRu : activeCat.nameEn}
+                              </span>
+                            </div>
+                          </button>
+                          
+                          {sprites.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeSpriteBlock(sprite.id);
+                              }}
+                              className="px-3.5 text-red-400 hover:text-red-300 hover:bg-red-950/40 border-l border-[#3d1a56]/80 transition-all cursor-pointer self-stretch flex items-center justify-center shrink-0 active:scale-90"
+                              title={lang === 'ru' ? 'Удалить' : 'Delete'}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <AnimatePresence initial={false}>
               {sprites.map((sprite, idx) => {
+                const isExpanded = expandedSprites[sprite.id] !== false;
+                if (!isExpanded) return null;
+
                 const calculated = calculateSpritePrice(sprite);
                 const blockKey = `sprite-${sprite.id}`;
                 const helpOpen = activeHelp[blockKey] || false;
                 const activeCat = CATEGORIES_LIST.find(c => c.id === sprite.categoryId) || CATEGORIES_LIST[0];
 
+                const isLoadedFromSeed = justLoadedFromSeedIds.includes(sprite.id);
+
                 return (
                   <motion.div
                     key={sprite.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    initial={isLoadedFromSeed ? { opacity: 0, y: 50, scale: 0.93 } : { opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, x: -50 }}
-                    transition={{ duration: 0.2 }}
-                    className="bg-[#2d143f] border-4 border-[#140620] rounded-2xl p-5 sm:p-6 shadow-xl hover:border-purple-300 hover:shadow-[0_0_25px_rgba(192,132,252,0.15)] transition-all duration-300 relative overflow-hidden group"
+                    transition={isLoadedFromSeed ? { type: "spring", stiffness: 70, damping: 15, delay: idx * 0.1 } : { duration: 0.2 }}
+                    className={`bg-[#2d143f] border-4 ${isLoadedFromSeed ? 'border-purple-300 shadow-[0_0_35px_rgba(192,132,252,0.3)] animate-glow' : 'border-[#140620]'} rounded-2xl p-5 sm:p-6 shadow-xl hover:border-purple-300 hover:shadow-[0_0_25px_rgba(192,132,252,0.15)] transition-all duration-300 relative overflow-hidden group`}
                   >
+                    {/* Particle burst of white sparks when loaded from seed */}
+                    {isLoadedFromSeed && <SeedParticleBurst />}
+
                     {/* Inner highlight line inside sprite block */}
                     <div className="absolute inset-1 border border-[#ebd6f7]/5 rounded-xl pointer-events-none"></div>
 
                     {/* Block Header */}
-                    <div className="flex justify-between items-center border-b border-[#ebd6f7]/10 pb-4 mb-5 relative z-10">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm sm:text-base font-bold bg-[#12051d] text-purple-300 px-2.5 py-1 rounded-lg border-2 border-[#3d1a56] shadow-inner">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#ebd6f7]/10 pb-4 mb-5 relative z-10 select-none">
+                      <div 
+                        onClick={() => {
+                          const isExpanded = expandedSprites[sprite.id] !== false;
+                          setExpandedSprites(prev => ({ ...prev, [sprite.id]: !isExpanded }));
+                        }}
+                        className="flex flex-wrap items-center gap-2.5 flex-1 cursor-pointer group/header"
+                      >
+                        {/* Collapse Toggle Icon */}
+                        <div className="w-8 h-8 rounded-lg bg-[#12051d] hover:bg-purple-950 border border-[#3d1a56] flex items-center justify-center text-purple-300 transition-colors">
+                          {expandedSprites[sprite.id] !== false ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+
+                        <span className="font-mono text-sm sm:text-base font-bold bg-[#12051d] text-purple-300 px-2.5 py-1 rounded-lg border-2 border-[#3d1a56] shadow-inner group-hover/header:border-purple-400/50 transition-colors">
                           {t.assetCardTitle}{idx + 1}
                         </span>
-                        <span className="text-base font-bold text-purple-100 tracking-tight">
+
+                        <span className="text-base font-bold text-purple-100 tracking-tight group-hover/header:text-purple-300 transition-colors">
                           {lang === 'ru' ? activeCat.nameRu : activeCat.nameEn}
                         </span>
+
+                        {/* Collapsed Mini Summary Badge */}
+                        {expandedSprites[sprite.id] === false && (
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-purple-200/80 font-semibold bg-[#12051d]/40 px-2.5 py-1 rounded-lg border border-[#3d1a56]/50">
+                            <span>{sprite.width}×{sprite.height} px</span>
+                            <span className="opacity-40">•</span>
+                            <span>
+                              {sprite.hasAnimation 
+                                ? (lang === 'ru' ? `Аним. (${sprite.frames} к.)` : `Anim (${sprite.frames} fr.)`) 
+                                : (lang === 'ru' ? 'Статичный' : 'Static')}
+                            </span>
+                            <span className="opacity-40">•</span>
+                            <span>
+                              {lang === 'ru' 
+                                ? `${sprite.countOrig} ориг. / ${sprite.countVar} подв.` 
+                                : `${sprite.countOrig} orig. / ${sprite.countVar} var.`}
+                            </span>
+                            {sprite.description.trim() && (
+                              <>
+                                <span className="opacity-40">•</span>
+                                <span className="text-purple-300/70 italic max-w-[180px] truncate">
+                                  "{sprite.description}"
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                       
-                      {sprites.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeSpriteBlock(sprite.id)}
-                          className="flex items-center gap-1.5 text-sm font-bold text-red-300 hover:text-red-200 bg-[#3a0c14] hover:bg-[#521320] border-2 border-[#140620] px-3 py-1.5 rounded-xl transition-all cursor-pointer active:scale-95"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>{t.deleteBtn}</span>
-                        </button>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {/* Subtotal badge */}
+                        <div className="text-xs sm:text-sm font-bold text-[#f7f5ef] bg-[#12051d] px-3.5 py-1.5 rounded-xl border border-purple-500/20 shadow-inner font-mono">
+                          {calculated.isInvalidSize ? (
+                            <span className="text-red-400 animate-pulse">! SIZE</span>
+                          ) : (
+                            <span className="text-purple-300 font-extrabold">
+                              {formatPrice(calculated.totalPrice)}
+                            </span>
+                          )}
+                        </div>
+
+                        {sprites.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeSpriteBlock(sprite.id)}
+                            className="flex items-center gap-1.5 text-sm font-bold text-red-300 hover:text-red-200 bg-[#3a0c14] hover:bg-[#521320] border-2 border-[#140620] px-3 py-1.5 rounded-xl transition-all cursor-pointer active:scale-95 shrink-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">{t.deleteBtn}</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Collapsible Form Body Wrapper */}
+                    {expandedSprites[sprite.id] !== false && (
+                      <div className="space-y-5">
 
                     {/* Inputs Form Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 relative z-10">
@@ -2286,20 +2727,20 @@ export default function App() {
                                     <li>
                                       <strong>{lang === 'ru' ? 'Оптимальное (+0%):' : 'Optimal (+0%):'}</strong>{' '}
                                       {lang === 'ru'
-                                        ? 'Классический аккуратный пиксель-арт, отлично подходящий для стандартных мобов, иконок и платформ.'
-                                        : 'Classic clean pixel art, perfect for standard mobs, icons, and environment blocks.'}
+                                        ? 'Обычное качество с стандартным набором детализации и проработки.'
+                                        : 'Regular quality with a standard level of detail and execution.'}
                                     </li>
                                     <li>
                                       <strong>{lang === 'ru' ? 'Среднее (+25%):' : 'Medium (+25%):'}</strong>{' '}
                                       {lang === 'ru'
-                                        ? 'Повышенная детализация, более проработанные тени, улучшенная анатомия и плавные очертания формы.'
-                                        : 'Enhanced detail, more refined shading, improved anatomy, and smoother outlines.'}
+                                        ? 'Повышенная детализация, более проработанные тени, улучшенные концепты и более оригинальные спрайты.'
+                                        : 'Enhanced detail, more refined shading, improved concepts, and more original sprites.'}
                                     </li>
                                     <li>
                                       <strong>{lang === 'ru' ? 'Лучшее (+50%):' : 'Best (+50%):'}</strong>{' '}
                                       {lang === 'ru'
-                                        ? 'Максимальный уровень прорисовки, ручной разбор каждого субпикселя, глубокие тени и кинематографический стиль.'
-                                        : 'Ultimate precision, manual sub-pixel editing, deep contrast shading, and highly polished style.'}
+                                        ? 'Тщательная проработка спрайтов, проработанный концепт арт и продуманная детализация.'
+                                        : 'Meticulous sprite execution, elaborate concept art, and thoughtful detailing.'}
                                     </li>
                                   </ul>
                                   <p className="text-xs text-stone-300 border-t border-white/10 pt-2">
@@ -2476,8 +2917,8 @@ export default function App() {
                         <span>{t.taskDescriptionLabel}</span>
                         <span className="text-xs font-mono opacity-70 lowercase">*{t.descRequiredError.split(' ')[0]}</span>
                       </label>
-                      <input
-                        type="text"
+                      <textarea
+                        rows={4}
                         value={sprite.description}
                         onChange={(e) => {
                           updateSpriteField(sprite.id, 'description', e.target.value);
@@ -2486,7 +2927,7 @@ export default function App() {
                             setValidationError(false);
                           }
                         }}
-                        className={`w-full bg-[#12051d] border-2 rounded-xl px-4 py-2.5 text-sm text-[#fbf7ff] placeholder-[#ebd6f7]/40 focus:outline-none focus:border-purple-300 focus:bg-[#1c082c] transition-all duration-200 ${
+                        className={`w-full bg-[#12051d] border-2 rounded-xl px-4 py-3 text-sm text-[#fbf7ff] placeholder-[#ebd6f7]/40 focus:outline-none focus:border-purple-300 focus:bg-[#1c082c] transition-all duration-200 resize-y min-h-[96px] ${
                           validationError && !sprite.description.trim() ? 'border-red-500 bg-red-950/20 shadow-[0_0_15px_rgba(239,68,68,0.15)]' : 'border-[#3d1a56]'
                         }`}
                         placeholder={t.taskDescPlaceholder}
@@ -2516,6 +2957,8 @@ export default function App() {
                         )}
                       </div>
                     </div>
+                    </div>
+                    )}
                   </motion.div>
                 );
               })}
@@ -2527,9 +2970,10 @@ export default function App() {
             <button
               type="button"
               onClick={addSpriteBlock}
-              className="w-full bg-purple-500 hover:bg-purple-400 text-white font-black text-sm uppercase py-4 rounded-2xl border-4 border-[#140620] shadow-[0_4px_15px_rgba(192,132,252,0.25)] hover:shadow-[0_4px_25px_rgba(192,132,252,0.45)] hover:scale-[1.005] transition-all active:translate-y-0.5 cursor-pointer animate-pulse-subtle"
+              className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white font-black text-sm uppercase py-4 rounded-2xl border-4 border-[#140620] shadow-[0_4px_15px_rgba(192,132,252,0.25)] hover:shadow-[0_4px_25px_rgba(192,132,252,0.45)] hover:scale-[1.005] transition-all active:translate-y-0.5 cursor-pointer flex items-center justify-center gap-2"
             >
-              {t.addAssetBtn}
+              <Plus className="w-4 h-4 animate-bounce" />
+              <span>{t.addAssetBtn}</span>
             </button>
           </div>
 
@@ -2545,17 +2989,43 @@ export default function App() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end relative z-10">
               <div>
-                <label className="block text-sm font-bold uppercase tracking-wider text-[#ebd6f7]/75 mb-1.5 flex items-center gap-1">
+                <label className="block text-sm font-bold uppercase tracking-wider text-[#ebd6f7]/75 mb-2 flex items-center gap-1">
                   <span>{t.queueUrgency}</span>
                 </label>
-                <select
-                  value={speedRate.toString()}
-                  onChange={(e) => setSpeedRate(parseFloat(e.target.value) || 1.0)}
-                  className="w-full bg-[#12051d] border-2 border-[#3d1a56] rounded-xl px-4 py-3 text-sm text-[#fbf7ff] font-bold focus:outline-none focus:border-purple-300 cursor-pointer"
+                <button
+                  type="button"
+                  onClick={() => setSpeedRate(prev => prev === 1.0 ? 1.25 : 1.0)}
+                  className={`w-full px-5 py-4 rounded-xl font-bold transition-all flex items-center justify-between gap-3 cursor-pointer active:scale-95 shadow-lg border-2 ${
+                    speedRate === 1.25
+                      ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white border-purple-400 shadow-[0_0_22px_rgba(192,132,252,0.45)] scale-[1.01]'
+                      : 'bg-[#12051d] hover:bg-[#1d0b2e] text-[#ebd6f7] border-[#3d1a56] hover:border-purple-400'
+                  }`}
                 >
-                  <option value="1.0">{t.moderateQueue}</option>
-                  <option value="1.25">{t.priorityQueue}</option>
-                </select>
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className={`w-4.5 h-4.5 ${speedRate === 1.25 ? 'text-yellow-300 animate-spin-slow' : 'text-purple-500'}`} />
+                    <span className="text-xs sm:text-sm uppercase tracking-widest font-black">
+                      {lang === 'ru' ? 'Приоритет' : 'Priority'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded border ${
+                      speedRate === 1.25 
+                        ? 'bg-[#12051d] text-purple-300 border-purple-400/40' 
+                        : 'bg-purple-950 text-purple-300 border-purple-400/20'
+                    }`}>
+                      +25%
+                    </span>
+                    {speedRate === 1.25 ? (
+                      <span className="text-[10px] font-black uppercase bg-[#12051d] text-green-400 px-2.5 py-1 rounded border-2 border-green-400/80 animate-pulse">
+                        {lang === 'ru' ? 'АКТИВЕН' : 'ACTIVE'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold uppercase bg-purple-950/60 text-purple-400 px-2 py-1 rounded border border-purple-500/20">
+                        {lang === 'ru' ? 'ВЫКЛ' : 'OFF'}
+                      </span>
+                    )}
+                  </div>
+                </button>
 
                 <div className="mt-3 bg-black/20 p-3 rounded-xl border border-white/5 text-xs sm:text-sm text-[#ebd6f7]/70 leading-relaxed font-medium">
                   <strong className="text-purple-300">{t.speedHelpTitle}</strong>
@@ -2720,8 +3190,8 @@ export default function App() {
                   </span>
                   <span>
                     {orderCalculations.totalSpritesCount >= 10 
-                      ? (lang === 'ru' ? 'Скидка улучшена до 75%' : 'Discount Upgraded to 75%')
-                      : (lang === 'ru' ? 'Прогресс оптовой скидки 50%' : 'Wholesale Discount Progress 50%')
+                      ? (lang === 'ru' ? 'Скидка улучшена до 50%' : 'Discount Upgraded to 50%')
+                      : (lang === 'ru' ? 'Прогресс оптовой скидки 25%' : 'Wholesale Discount Progress 25%')
                     }
                   </span>
                   <button
@@ -2766,17 +3236,17 @@ export default function App() {
                   </span>
                 ) : orderCalculations.totalSpritesCount >= 50 ? (
                   <span className="text-emerald-400 font-extrabold">
-                    {lang === 'ru' ? 'Скидка улучшена до 75%!' : 'Discount upgraded to 75%!'}
+                    {lang === 'ru' ? 'Скидка улучшена до 50%!' : 'Discount upgraded to 50%!'}
                   </span>
                 ) : orderCalculations.totalSpritesCount >= 10 ? (
                   <div className="space-y-1">
                     <span className="text-emerald-400 font-extrabold">
-                      {lang === 'ru' ? 'Скидка 50% успешно применена!' : 'Discount 50% successfully applied!'}
+                      {lang === 'ru' ? 'Скидка 25% успешно применена!' : 'Discount 25% successfully applied!'}
                     </span>
                     <span className="text-stone-400 text-xs block font-normal">
                       {lang === 'ru'
-                        ? `До скидки 75% нужно еще ${50 - orderCalculations.totalSpritesCount} ассетов.`
-                        : `Need ${50 - orderCalculations.totalSpritesCount} more assets to reach 75% discount.`
+                        ? `До скидки 50% нужно еще ${50 - orderCalculations.totalSpritesCount} ассетов.`
+                        : `Need ${50 - orderCalculations.totalSpritesCount} more assets to reach 50% discount.`
                       }
                     </span>
                   </div>
@@ -2787,8 +3257,8 @@ export default function App() {
                     </span>
                     <span className="text-stone-400 text-xs block font-normal">
                       {lang === 'ru'
-                        ? `До скидки 50% нужно еще ${10 - orderCalculations.totalSpritesCount} ассетов.`
-                        : `Need ${10 - orderCalculations.totalSpritesCount} more assets to reach 50% discount.`
+                        ? `До скидки 25% нужно еще ${10 - orderCalculations.totalSpritesCount} ассетов.`
+                        : `Need ${10 - orderCalculations.totalSpritesCount} more assets to reach 25% discount.`
                       }
                     </span>
                   </div>
@@ -2819,11 +3289,11 @@ export default function App() {
                       </li>
                       <li>
                         <strong>{lang === 'ru' ? 'От 11 до 50 ассетов:' : '11 to 50 assets:'}</strong>{' '}
-                        {lang === 'ru' ? 'Скидка 50% действует на каждый последующий ассет.' : 'A 50% discount applies to each subsequent asset.'}
+                        {lang === 'ru' ? 'Скидка 25% действует на каждый последующий ассет.' : 'A 25% discount applies to each subsequent asset.'}
                       </li>
                       <li>
                         <strong>{lang === 'ru' ? 'Свыше 50 ассетов:' : 'Over 50 assets:'}</strong>{' '}
-                        {lang === 'ru' ? 'Улучшенная скидка 75% действует на каждый последующий ассет.' : 'An upgraded 75% discount applies to each subsequent asset.'}
+                        {lang === 'ru' ? 'Улучшенная скидка 50% действует на каждый последующий ассет.' : 'An upgraded 50% discount applies to each subsequent asset.'}
                       </li>
                     </ul>
                     <div className="pt-2 border-t border-white/10 text-xs text-stone-300 font-mono">
@@ -2839,124 +3309,248 @@ export default function App() {
 
           {/* Technical specification output area */}
           <div className="mt-12 pt-8 border-t-2 border-[#ebd6f7]/10 relative z-10">
-            <div className="flex flex-col gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <h3 className="font-display text-lg font-bold uppercase tracking-wider text-[#ead6cd] flex items-center gap-2">
                 <FileText className="w-5 h-5 text-purple-300" />
                 <span>{t.specificationTitle}</span>
               </h3>
 
-              {/* Copy and download spec btns */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+              {/* Compact Important Note Button */}
+              <div>
                 <button
                   type="button"
-                  onClick={() => generateTZ(true)}
-                  className="w-full bg-purple-500 hover:bg-purple-400 text-white font-bold text-sm uppercase px-4 py-3 rounded-xl border-2 border-[#140620] transition-all cursor-pointer active:scale-95 shadow flex items-center justify-center gap-1.5 h-12 animate-none"
+                  onClick={() => setIsNoteExpanded(!isNoteExpanded)}
+                  className="px-3.5 py-1.5 text-xs font-bold text-amber-400 bg-amber-950/40 hover:bg-amber-950/60 border border-amber-500/30 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
                 >
-                  <span>{t.generateTzBtn}</span>
+                  <Info className="w-3.5 h-3.5 text-amber-400 stroke-[2.5]" />
+                  <span>{lang === 'ru' ? 'Важное примечание' : 'Important Note'}</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isNoteExpanded ? 'rotate-180' : ''}`} />
                 </button>
-                <button
-                  type="button"
-                  onClick={copyTZ}
-                  disabled={!tzOutput}
-                  className={`w-full font-bold text-sm uppercase px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border-2 active:scale-95 h-12 ${
-                    !tzOutput
-                      ? 'bg-[#12051d] text-purple-900/60 border-[#3d1a56] cursor-not-allowed opacity-50'
-                      : copied
-                      ? 'bg-emerald-600 text-white border-transparent'
-                      : 'bg-purple-500 hover:bg-purple-400 text-white border-[#140620]'
-                  }`}
-                >
-                  {copied ? <Check className="w-3.5 h-3.5" /> : <Clipboard className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'Copied!' : t.copyTzBtn}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={downloadTZFile}
-                  disabled={!tzOutput}
-                  className={`w-full font-bold text-sm uppercase px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border-2 active:scale-95 h-12 ${
-                    !tzOutput
-                      ? 'bg-[#12051d] text-purple-900/60 border-[#3d1a56] cursor-not-allowed opacity-50'
-                      : 'bg-[#12051d] hover:bg-[#1a0729] text-[#ebd6f7] border-[#3d1a56]'
-                  }`}
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{t.downloadTzBtn}</span>
-                </button>
+              </div>
+            </div>
 
-                {/* Send to Socials dropdown */}
-                <div className="relative w-full">
+              {/* Collapsible Important Note Box */}
+            <AnimatePresence>
+              {isNoteExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-amber-950/25 border-2 border-amber-500/40 rounded-2xl p-5 mb-6 overflow-hidden shadow-lg shadow-amber-950/20"
+                >
+                  <p className="text-sm sm:text-base text-amber-200/90 font-bold leading-relaxed">
+                    {lang === 'ru' ? (
+                      <>
+                        Данный инструмент является <strong>всего лишь калькулятором</strong> и не является формой оформления заказа, всё будет <strong>обговариваться отдельно</strong>. Также обратите внимание: <strong>нельзя заказать отдельно 10 разных ТЗ</strong>; все они в конечном итоге всё равно <strong>будут объединяться в один общий заказ</strong>.
+                      </>
+                    ) : (
+                      <>
+                        This tool is <strong>strictly a calculator</strong> and does not constitute order placement; everything will be <strong>discussed separately</strong>. Also note: <strong>you cannot order 10 separate specifications</strong>; they will all ultimately <strong>be merged into a single cumulative order</strong>.
+                      </>
+                    )}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="space-y-6">
+                
+                {/* Copy and download spec btns */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
                   <button
                     type="button"
-                    onClick={() => setShowSocialsDropdown(!showSocialsDropdown)}
-                    className="w-full bg-[#c084fc] hover:bg-[#a855f7] text-[#1c0d2b] font-bold text-sm uppercase px-4 py-3 rounded-xl border-2 border-[#140620] transition-all cursor-pointer active:scale-95 shadow flex items-center justify-center gap-1.5 h-12"
+                    onClick={() => generateTZ(true)}
+                    className="w-full bg-purple-500 hover:bg-purple-400 text-white font-bold text-sm uppercase px-4 py-3 rounded-xl border-2 border-[#140620] transition-all cursor-pointer active:scale-95 shadow flex items-center justify-center gap-1.5 h-12"
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>{t.sendToSocialsBtn}</span>
-                    <ChevronDown className={`w-3 h-3 transition-transform ${showSocialsDropdown ? 'rotate-180' : ''}`} />
+                    <span>{t.generateTzBtn}</span>
                   </button>
-                  {showSocialsDropdown && (
-                    <div className="absolute right-0 sm:left-0 sm:right-auto mt-2 w-full min-w-[280px] bg-[#210c30] border-2 border-[#542575] rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.5)] overflow-hidden z-50">
-                      <div className="py-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSocialClick('telegram');
-                            setShowSocialsDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-purple-100 hover:bg-[#3d1956] transition-colors flex items-center gap-2.5"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-                          <span>{t.telegram}: <span className="text-[#c084fc] select-all font-mono lowercase">@Village_Village</span></span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSocialClick('discord');
-                            setShowSocialsDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-purple-100 hover:bg-[#3d1956] transition-colors flex items-center gap-2.5"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
-                          <span>{t.discord}: <span className="text-[#c084fc] select-all font-mono lowercase">@villagelsc_</span></span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleSocialClick('email');
-                            setShowSocialsDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-purple-100 hover:bg-[#3d1956] transition-colors flex items-center gap-2.5"
-                        >
-                          <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
-                          <span className="truncate">{t.email}: <span className="text-[#c084fc] select-all font-mono">errorsbills@gmail.com</span></span>
-                        </button>
+                  <button
+                    type="button"
+                    onClick={copyTZ}
+                    disabled={!tzOutput}
+                    className={`w-full font-bold text-sm uppercase px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border-2 active:scale-95 h-12 ${
+                      !tzOutput
+                        ? 'bg-[#12051d] text-purple-900/60 border-[#3d1a56] cursor-not-allowed opacity-50'
+                        : copied
+                        ? 'bg-emerald-600 text-white border-transparent'
+                        : 'bg-purple-500 hover:bg-purple-400 text-white border-[#140620]'
+                    }`}
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5" /> : <Clipboard className="w-3.5 h-3.5" />}
+                    <span>{copied ? 'Copied!' : t.copyTzBtn}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadTZFile}
+                    disabled={!tzOutput}
+                    className={`w-full font-bold text-sm uppercase px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border-2 active:scale-95 h-12 ${
+                      !tzOutput
+                        ? 'bg-[#12051d] text-purple-900/60 border-[#3d1a56] cursor-not-allowed opacity-50'
+                        : 'bg-[#12051d] hover:bg-[#1a0729] text-[#ebd6f7] border-[#3d1a56]'
+                    }`}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{t.downloadTzBtn}</span>
+                  </button>
+
+                  {/* Send to Socials dropdown */}
+                  <div className="relative w-full">
+                    <button
+                      type="button"
+                      onClick={() => setShowSocialsDropdown(!showSocialsDropdown)}
+                      className="w-full bg-[#c084fc] hover:bg-[#a855f7] text-[#1c0d2b] font-bold text-sm uppercase px-4 py-3 rounded-xl border-2 border-[#140620] transition-all cursor-pointer active:scale-95 shadow flex items-center justify-center gap-1.5 h-12"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{t.sendToSocialsBtn}</span>
+                      <ChevronDown className={`w-3 h-3 transition-transform ${showSocialsDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showSocialsDropdown && (
+                      <div className="absolute right-0 sm:left-0 sm:right-auto mt-2 w-full min-w-[280px] bg-[#210c30] border-2 border-[#542575] rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.5)] overflow-hidden z-50">
+                        <div className="py-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSocialClick('telegram');
+                              setShowSocialsDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-purple-100 hover:bg-[#3d1956] transition-colors flex items-center gap-2.5"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+                            <span>{t.telegram}: <span className="text-[#c084fc] select-all font-mono lowercase">@Village_Village</span></span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSocialClick('discord');
+                              setShowSocialsDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-purple-100 hover:bg-[#3d1956] transition-colors flex items-center gap-2.5"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                            <span>{t.discord}: <span className="text-[#c084fc] select-all font-mono lowercase">@villagelsc_</span></span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleSocialClick('email');
+                              setShowSocialsDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-purple-100 hover:bg-[#3d1956] transition-colors flex items-center gap-2.5"
+                          >
+                            <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                            <span className="truncate">{t.email}: <span className="text-[#c084fc] select-all font-mono">errorsbills@gmail.com</span></span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Spec Output Area Box */}
+                <div className="relative">
+                  <textarea
+                    id="tz-output-area"
+                    readOnly
+                    value={tzOutput}
+                    placeholder={t.tzPlaceholder}
+                    className="w-full h-72 bg-[#12051d] text-[#ebd6f7] font-mono text-sm leading-relaxed p-5 rounded-2xl border-2 border-[#3d1a56] shadow-inner focus:outline-none focus:border-purple-300 transition-all resize-none"
+                  />
+                  {!tzOutput && (
+                    <div className="absolute inset-0 flex items-center justify-center p-6 bg-black/20 pointer-events-none rounded-2xl border border-[#3d1a56]">
+                      <div className="text-center text-[#ebd6f7]/40 max-w-sm">
+                        <Sparkles className="w-8 h-8 mx-auto mb-2.5 text-purple-300/40" />
+                        <p className="text-xs leading-normal font-medium">{t.tzPlaceholder}</p>
                       </div>
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
 
-            {/* Spec Output Area Box */}
-            <div className="relative">
-              <textarea
-                id="tz-output-area"
-                readOnly
-                value={tzOutput}
-                placeholder={t.tzPlaceholder}
-                className="w-full h-72 bg-[#12051d] text-[#ebd6f7] font-mono text-sm leading-relaxed p-5 rounded-2xl border-2 border-[#3d1a56] shadow-inner focus:outline-none focus:border-purple-300 transition-all resize-none"
-              />
-              {!tzOutput && (
-                <div className="absolute inset-0 flex items-center justify-center p-6 bg-black/20 pointer-events-none rounded-2xl border border-[#3d1a56]">
-                  <div className="text-center text-[#ebd6f7]/40 max-w-sm">
-                    <Sparkles className="w-8 h-8 mx-auto mb-2.5 text-purple-300/40" />
-                    <p className="text-xs leading-normal font-medium">{t.tzPlaceholder}</p>
+                {/* Seed Import/Export Section */}
+                <div className="mt-8 pt-6 border-t border-[#ebd6f7]/10">
+                  <h4 className="font-display text-sm font-bold uppercase tracking-wider text-[#ead6cd] flex items-center gap-2 mb-4">
+                    <Settings className="w-4 h-4 text-purple-300" />
+                    <span>{lang === 'ru' ? 'Сид Конфигурации Калькулятора (Импорт / Экспорт)' : 'Calculator Configuration Seed (Import / Export)'}</span>
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Export / Current Seed */}
+                    <div className="space-y-2.5 bg-[#12051d] p-4 rounded-2xl border border-[#3d1a56]/80">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-purple-300 uppercase tracking-wide">
+                          {lang === 'ru' ? 'Текущий сид вашего заказа:' : 'Your current order seed:'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(generatedSeed);
+                            setSeedCopied(true);
+                            setTimeout(() => setSeedCopied(false), 2000);
+                          }}
+                          disabled={!generatedSeed}
+                          className={`px-3 py-1 text-xs font-bold uppercase rounded border transition-all cursor-pointer ${
+                            seedCopied
+                              ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
+                              : 'bg-purple-950/50 text-purple-300 border-purple-500/20 hover:border-purple-400 hover:text-white'
+                          }`}
+                        >
+                          {seedCopied ? (lang === 'ru' ? 'Скопировано!' : 'Copied!') : (lang === 'ru' ? 'Копировать сид' : 'Copy Seed')}
+                        </button>
+                      </div>
+                      <textarea
+                        readOnly
+                        value={generatedSeed}
+                        placeholder={lang === 'ru' ? 'Сид генерируется автоматически...' : 'Seed generates automatically...'}
+                        className="w-full h-20 bg-[#0c0314] text-stone-400 font-mono text-[11px] leading-normal p-3 rounded-xl border border-[#3d1a56]/50 resize-none focus:outline-none select-all"
+                      />
+                      <p className="text-[10px] text-stone-400 font-medium leading-normal">
+                        {lang === 'ru' 
+                          ? 'Этот код содержит все выбранные параметры и описания. Вы можете сохранить его или переслать исполнителю, чтобы он мгновенно загрузил вашу конфигурацию на сайт.'
+                          : 'This code stores all chosen parameters and descriptions. You can save it or send it to the artist so they can instantly load your configuration on the site.'}
+                      </p>
+                    </div>
+
+                    {/* Import Seed */}
+                    <div className="space-y-2.5 bg-[#12051d] p-4 rounded-2xl border border-[#3d1a56]/80 flex flex-col justify-between">
+                      <div className="space-y-2 flex-1">
+                        <span className="text-xs font-bold text-purple-300 uppercase tracking-wide block">
+                          {lang === 'ru' ? 'Загрузить / Импортировать сид:' : 'Load / Import seed:'}
+                        </span>
+                        <input
+                          type="text"
+                          value={pastedSeed}
+                          onChange={(e) => setPastedSeed(e.target.value)}
+                          placeholder={lang === 'ru' ? 'Вставьте код сида сюда...' : 'Paste seed code here...'}
+                          className="w-full bg-[#0c0314] text-purple-200 font-mono text-xs p-3 rounded-xl border border-[#3d1a56]/50 focus:outline-none focus:border-purple-400"
+                        />
+                        
+                        {seedError && (
+                          <p className="text-xs font-semibold text-rose-400 mt-1">
+                            ⚠️ {seedError}
+                          </p>
+                        )}
+                        {seedSuccess && (
+                          <p className="text-xs font-semibold text-emerald-400 mt-1">
+                            ✓ {lang === 'ru' ? 'Конфигурация успешно загружена!' : 'Configuration successfully loaded!'}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => applySeed(pastedSeed)}
+                          className="w-full py-2.5 bg-[#3d1a56] hover:bg-purple-800 text-[#ebd6f7] font-bold text-xs uppercase rounded-xl border border-purple-500/30 transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-1.5"
+                        >
+                          <span>{lang === 'ru' ? 'Применить код сида' : 'Apply Seed Code'}</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
+
+              </div>
             </div>
           </div>
-        </div>
       </section>
 
       {/* Floating Scroll to Calculator Button */}
