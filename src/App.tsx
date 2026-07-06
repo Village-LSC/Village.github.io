@@ -271,7 +271,7 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
     // Low-resolution render scale factor.
     // Scales down the canvas dimensions, reducing the pixel grid calculations by 36x,
     // while image-rendering: pixelated ensures it scales back up with beautiful crispy retro pixels!
-    let scale = 6;
+    let scale = 4;
 
     interface Star {
       x: number;
@@ -300,7 +300,7 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
       // Calculate dynamic scale factor based on devicePixelRatio to ensure background pixel sizes remain constant
       // when zooming or scaling the browser window.
       const dpr = window.devicePixelRatio || 1;
-      scale = Math.max(1, 6 / dpr);
+      scale = Math.max(1, 4 / dpr);
 
       canvas.width = Math.ceil(window.innerWidth / scale);
       canvas.height = Math.ceil(window.innerHeight / scale);
@@ -898,6 +898,23 @@ export default function App() {
       window.removeEventListener('scroll', handleUserInteraction);
       window.removeEventListener('mousemove', handleUserInteraction);
       window.removeEventListener('focus', handleUserInteraction);
+      window.removeEventListener('mouseover', handleUserInteraction);
+      window.removeEventListener('mouseenter', handleUserInteraction);
+      window.removeEventListener('pointerdown', handleUserInteraction);
+      window.removeEventListener('pointermove', handleUserInteraction);
+      window.removeEventListener('wheel', handleUserInteraction);
+
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+      document.removeEventListener('mousedown', handleUserInteraction);
+      document.removeEventListener('scroll', handleUserInteraction);
+      document.removeEventListener('mousemove', handleUserInteraction);
+      document.removeEventListener('mouseover', handleUserInteraction);
+      document.removeEventListener('mouseenter', handleUserInteraction);
+      document.removeEventListener('pointerdown', handleUserInteraction);
+      document.removeEventListener('pointermove', handleUserInteraction);
+      document.removeEventListener('wheel', handleUserInteraction);
     };
 
     window.addEventListener('click', handleUserInteraction);
@@ -907,6 +924,23 @@ export default function App() {
     window.addEventListener('scroll', handleUserInteraction);
     window.addEventListener('mousemove', handleUserInteraction);
     window.addEventListener('focus', handleUserInteraction);
+    window.addEventListener('mouseover', handleUserInteraction);
+    window.addEventListener('mouseenter', handleUserInteraction);
+    window.addEventListener('pointerdown', handleUserInteraction);
+    window.addEventListener('pointermove', handleUserInteraction);
+    window.addEventListener('wheel', handleUserInteraction);
+
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+    document.addEventListener('touchstart', handleUserInteraction);
+    document.addEventListener('mousedown', handleUserInteraction);
+    document.addEventListener('scroll', handleUserInteraction);
+    document.addEventListener('mousemove', handleUserInteraction);
+    document.addEventListener('mouseover', handleUserInteraction);
+    document.addEventListener('mouseenter', handleUserInteraction);
+    document.addEventListener('pointerdown', handleUserInteraction);
+    document.addEventListener('pointermove', handleUserInteraction);
+    document.addEventListener('wheel', handleUserInteraction);
 
     // Cross-fade looping!
     const checkInterval = setInterval(() => {
