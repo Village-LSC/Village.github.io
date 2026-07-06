@@ -863,7 +863,10 @@ export default function App() {
     tryPlay();
 
     // Trigger on standard user interaction if initially blocked by browser autoplay policy
-    const handleUserInteraction = () => {
+    const handleUserInteraction = (e?: Event) => {
+      if (e && e.target && e.target instanceof Element && e.target.closest('button')) {
+        return;
+      }
       tryPlay();
     };
 
@@ -872,20 +875,32 @@ export default function App() {
       window.removeEventListener('keydown', handleUserInteraction);
       window.removeEventListener('touchstart', handleUserInteraction);
       window.removeEventListener('mousedown', handleUserInteraction);
+      window.removeEventListener('pointerdown', handleUserInteraction);
+      window.removeEventListener('scroll', handleUserInteraction);
+      window.removeEventListener('wheel', handleUserInteraction);
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
       document.removeEventListener('touchstart', handleUserInteraction);
       document.removeEventListener('mousedown', handleUserInteraction);
+      document.removeEventListener('pointerdown', handleUserInteraction);
+      document.removeEventListener('scroll', handleUserInteraction);
+      document.removeEventListener('wheel', handleUserInteraction);
     };
 
-    window.addEventListener('click', handleUserInteraction);
-    window.addEventListener('keydown', handleUserInteraction);
-    window.addEventListener('touchstart', handleUserInteraction);
-    window.addEventListener('mousedown', handleUserInteraction);
-    document.addEventListener('click', handleUserInteraction);
-    document.addEventListener('keydown', handleUserInteraction);
-    document.addEventListener('touchstart', handleUserInteraction);
-    document.addEventListener('mousedown', handleUserInteraction);
+    window.addEventListener('click', handleUserInteraction, { passive: true });
+    window.addEventListener('keydown', handleUserInteraction, { passive: true });
+    window.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    window.addEventListener('mousedown', handleUserInteraction, { passive: true });
+    window.addEventListener('pointerdown', handleUserInteraction, { passive: true });
+    window.addEventListener('scroll', handleUserInteraction, { passive: true });
+    window.addEventListener('wheel', handleUserInteraction, { passive: true });
+    document.addEventListener('click', handleUserInteraction, { passive: true });
+    document.addEventListener('keydown', handleUserInteraction, { passive: true });
+    document.addEventListener('touchstart', handleUserInteraction, { passive: true });
+    document.addEventListener('mousedown', handleUserInteraction, { passive: true });
+    document.addEventListener('pointerdown', handleUserInteraction, { passive: true });
+    document.addEventListener('scroll', handleUserInteraction, { passive: true });
+    document.addEventListener('wheel', handleUserInteraction, { passive: true });
 
     return () => {
       if (audioRef.current) {
@@ -905,7 +920,7 @@ export default function App() {
 
   const togglePlay = () => {
     if (!audioRef.current) return;
-    if (isPlaying) {
+    if (isPlaying && !audioRef.current.paused) {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
