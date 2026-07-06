@@ -826,11 +826,10 @@ export default function App() {
 
   useEffect(() => {
     const audio = new Audio(PLAYLIST[currentTrackIdx].url);
-    audio.loop = false; // We handle smooth custom looping manually for seamless experience
-    audio.volume = 0; // Start at 0 for smooth fade-in
+    audio.loop = true; // Simple natural looping instead of complex interval crossfade
+    audio.volume = volumeRef.current;
     audioRef.current = audio;
 
-    let isTransitioning = false;
     let fallbackToRemote = false;
 
     const useRemoteFallback = () => {
@@ -839,9 +838,7 @@ export default function App() {
       console.log('Local lobby.mp3 is empty or unplayable. Switching to remote ambient stream.');
       audio.src = 'https://archive.org/download/minecraft_ost/08%20-%20Sweden.mp3';
       if (isPlayingRef.current) {
-        audio.play().then(() => {
-          fadeInAudio(audio, volumeRef.current);
-        }).catch(err => {
+        audio.play().catch(err => {
           console.log('Playback error on remote fallback stream:', err);
         });
       }
@@ -849,32 +846,12 @@ export default function App() {
 
     audio.addEventListener('error', useRemoteFallback);
 
-    const fadeInAudio = (targetAudio: HTMLAudioElement, targetVolume: number, durationMs = 2500) => {
-      const steps = 25;
-      const stepTime = durationMs / steps;
-      let currentStep = 0;
-      targetAudio.volume = 0;
-      
-      const interval = setInterval(() => {
-        currentStep++;
-        if (!isPlayingRef.current || audioRef.current !== targetAudio) {
-          clearInterval(interval);
-          return;
-        }
-        targetAudio.volume = Math.min(targetVolume, targetVolume * (currentStep / steps));
-        if (currentStep >= steps) {
-          clearInterval(interval);
-          targetAudio.volume = targetVolume;
-        }
-      }, stepTime);
-    };
-
     const tryPlay = () => {
       if (!audioRef.current) return;
+      if (!isPlayingRef.current) return;
       audioRef.current.play()
         .then(() => {
           setIsPlaying(true);
-          fadeInAudio(audioRef.current!, volumeRef.current);
           cleanupListeners();
         })
         .catch(err => {
@@ -882,10 +859,10 @@ export default function App() {
         });
     };
 
-    // Try to play immediately on mount
+    // Try to play immediately when page is loaded (mount)
     tryPlay();
 
-    // Fallback: trigger playback on first user interaction if blocked (click, keydown, touch, mouse, scroll, focus)
+    // Trigger on standard user interaction if initially blocked by browser autoplay policy
     const handleUserInteraction = () => {
       tryPlay();
     };
@@ -895,114 +872,20 @@ export default function App() {
       window.removeEventListener('keydown', handleUserInteraction);
       window.removeEventListener('touchstart', handleUserInteraction);
       window.removeEventListener('mousedown', handleUserInteraction);
-      window.removeEventListener('scroll', handleUserInteraction);
-      window.removeEventListener('mousemove', handleUserInteraction);
-      window.removeEventListener('focus', handleUserInteraction);
-      window.removeEventListener('mouseover', handleUserInteraction);
-      window.removeEventListener('mouseenter', handleUserInteraction);
-      window.removeEventListener('pointerdown', handleUserInteraction);
-      window.removeEventListener('pointermove', handleUserInteraction);
-      window.removeEventListener('wheel', handleUserInteraction);
-
       document.removeEventListener('click', handleUserInteraction);
       document.removeEventListener('keydown', handleUserInteraction);
       document.removeEventListener('touchstart', handleUserInteraction);
       document.removeEventListener('mousedown', handleUserInteraction);
-      document.removeEventListener('scroll', handleUserInteraction);
-      document.removeEventListener('mousemove', handleUserInteraction);
-      document.removeEventListener('mouseover', handleUserInteraction);
-      document.removeEventListener('mouseenter', handleUserInteraction);
-      document.removeEventListener('pointerdown', handleUserInteraction);
-      document.removeEventListener('pointermove', handleUserInteraction);
-      document.removeEventListener('wheel', handleUserInteraction);
     };
 
     window.addEventListener('click', handleUserInteraction);
     window.addEventListener('keydown', handleUserInteraction);
     window.addEventListener('touchstart', handleUserInteraction);
     window.addEventListener('mousedown', handleUserInteraction);
-    window.addEventListener('scroll', handleUserInteraction);
-    window.addEventListener('mousemove', handleUserInteraction);
-    window.addEventListener('focus', handleUserInteraction);
-    window.addEventListener('mouseover', handleUserInteraction);
-    window.addEventListener('mouseenter', handleUserInteraction);
-    window.addEventListener('pointerdown', handleUserInteraction);
-    window.addEventListener('pointermove', handleUserInteraction);
-    window.addEventListener('wheel', handleUserInteraction);
-
     document.addEventListener('click', handleUserInteraction);
     document.addEventListener('keydown', handleUserInteraction);
     document.addEventListener('touchstart', handleUserInteraction);
     document.addEventListener('mousedown', handleUserInteraction);
-    document.addEventListener('scroll', handleUserInteraction);
-    document.addEventListener('mousemove', handleUserInteraction);
-    document.addEventListener('mouseover', handleUserInteraction);
-    document.addEventListener('mouseenter', handleUserInteraction);
-    document.addEventListener('pointerdown', handleUserInteraction);
-    document.addEventListener('pointermove', handleUserInteraction);
-    document.addEventListener('wheel', handleUserInteraction);
-
-    // Cross-fade looping!
-    const checkInterval = setInterval(() => {
-      const currentAudio = audioRef.current;
-      if (!currentAudio) return;
-
-      const fadeDuration = 4.0; // seconds
-      if (
-        currentAudio.duration && 
-        currentAudio.duration > fadeDuration && 
-        currentAudio.currentTime >= currentAudio.duration - fadeDuration &&
-        !isTransitioning &&
-        isPlayingRef.current
-      ) {
-        isTransitioning = true;
-        console.log('Initiating seamless crossfade transition...');
-
-        // Create the next audio track
-        const nextAudio = new Audio(fallbackToRemote ? 'https://archive.org/download/minecraft_ost/08%20-%20Sweden.mp3' : PLAYLIST[currentTrackIdx].url);
-        nextAudio.loop = false;
-        nextAudio.volume = 0;
-
-        nextAudio.play()
-          .then(() => {
-            const steps = 40; // 40 steps over 4 seconds
-            const stepInterval = 100;
-            let currentStep = 0;
-
-            const crossfadeTimer = setInterval(() => {
-              currentStep++;
-              const ratio = currentStep / steps; // 0 to 1
-
-              // Fade out current audio
-              currentAudio.volume = Math.max(0, volumeRef.current * (1 - ratio));
-              // Fade in next audio
-              nextAudio.volume = Math.min(volumeRef.current, volumeRef.current * ratio);
-
-              if (currentStep >= steps) {
-                clearInterval(crossfadeTimer);
-                
-                // Cleanup current audio
-                currentAudio.pause();
-                currentAudio.removeEventListener('error', useRemoteFallback);
-
-                // Set next audio as the main reference
-                audioRef.current = nextAudio;
-                isTransitioning = false;
-                console.log('Seamless crossfade completed successfully!');
-              }
-            }, stepInterval);
-          })
-          .catch(err => {
-            console.log('Seamless crossfade play blocked or failed, recovering via hard loop:', err);
-            isTransitioning = false;
-          });
-      } else if (currentAudio.ended) {
-        // Safe fallback in case loop is triggered or ended completely
-        currentAudio.currentTime = 0;
-        fadeInAudio(currentAudio, volumeRef.current, 1500);
-        currentAudio.play().catch(e => console.log('Loop recovery failed:', e));
-      }
-    }, 500);
 
     return () => {
       if (audioRef.current) {
@@ -1010,7 +893,6 @@ export default function App() {
       }
       audio.removeEventListener('error', useRemoteFallback);
       cleanupListeners();
-      clearInterval(checkInterval);
       audioRef.current = null;
     };
   }, [currentTrackIdx]);
@@ -1027,7 +909,6 @@ export default function App() {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      // Restore standard volume before playing so it doesn't stay stuck in fade-out state
       audioRef.current.volume = volume;
       audioRef.current.play().then(() => {
         setIsPlaying(true);
