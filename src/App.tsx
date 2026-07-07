@@ -60,7 +60,7 @@ function DitherNebula({ isExpanded }: { isExpanded: boolean }) {
     if (!ctx) return;
 
     let animationFrameId: number;
-    const PIXEL_SCALE = 4;
+    const PIXEL_SCALE = 8;
 
     let width = 0;
     let height = 0;
@@ -236,9 +236,9 @@ function DitherNebula({ isExpanded }: { isExpanded: boolean }) {
           // Normalize to a 0..1 factor of how far we are into the footer trigger zone
           const factor = 1 - (Math.max(0, distanceToBottom) / footerTriggerHeight); // 0 at footer start, 1 at absolute bottom
           
-          // Rise from offscreen (height + 40) to height - 15 (showing a thin, elegant 15px dithered strip at the very bottom edge of space)
+          // Rise from offscreen (height + 40) to a thin, elegant 20 CSS pixels dithered strip at the very bottom edge of space
           const minWaveY = height + 40;
-          const maxWaveY = height - 15; // lowered to stay at the absolute bottom
+          const maxWaveY = height - Math.ceil(20 / PIXEL_SCALE); // lowered to stay at the absolute bottom
           targetWaveY = minWaveY - (minWaveY - maxWaveY) * factor;
         }
       }
@@ -426,7 +426,7 @@ function DitherNebula({ isExpanded }: { isExpanded: boolean }) {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-screen h-screen pointer-events-none z-20"
+      className="fixed inset-0 w-screen h-screen pointer-events-none z-5"
       style={{ imageRendering: 'pixelated' }}
     />
   );
@@ -653,9 +653,9 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
     let currentAvatarIntensity = 0.0; // special black hole effect around avatar
 
     // Low-resolution render scale factor.
-    // Scales down the canvas dimensions, reducing the pixel grid calculations by 36x,
+    // Scales down the canvas dimensions, reducing the pixel grid calculations by 64x,
     // while image-rendering: pixelated ensures it scales back up with beautiful crispy retro pixels!
-    let scale = 4;
+    let scale = 8;
 
     interface Star {
       x: number;
@@ -681,10 +681,8 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
     };
     
     const resizeCanvas = () => {
-      // Calculate dynamic scale factor based on devicePixelRatio to ensure background pixel sizes remain constant
-      // when zooming or scaling the browser window.
-      const dpr = window.devicePixelRatio || 1;
-      scale = Math.max(1, 4 / dpr);
+      // Fixed pixel scale for all devices to prevent mobile lag and maintain pixel-art consistency
+      scale = 8;
 
       canvas.width = Math.ceil(window.innerWidth / scale);
       canvas.height = Math.ceil(window.innerHeight / scale);
@@ -2499,17 +2497,8 @@ export default function App() {
               </p>
             </div>
 
-            {/* Top Right Controls: Return to Home, Random button & Currency selector */}
+            {/* Top Right Controls: Random button & Currency selector */}
             <div className="flex flex-wrap items-center gap-3 relative z-10">
-              <button
-                type="button"
-                onClick={scrollToHome}
-                className="bg-[#c084fc] hover:bg-[#a855f7] text-[#1c0d2b] font-display font-extrabold text-sm uppercase px-4 py-2.5 rounded-xl border-2 border-[#140620] shadow-[0_0_15px_rgba(192,132,252,0.5)] transition-all active:scale-[0.98] cursor-pointer flex items-center gap-1.5 select-none font-sans"
-              >
-                <ArrowUpCircle className="w-3.5 h-3.5 text-[#1c0d2b] animate-bounce shrink-0" />
-                <span>{lang === 'ru' ? 'На главную' : 'To Main Page'}</span>
-              </button>
-
               <button
                 type="button"
                 onClick={addRandomSprite}
@@ -4009,7 +3998,7 @@ export default function App() {
       </section>
 
       {/* Edge of Space Footer */}
-      <footer className="w-full max-w-4xl mx-auto px-4 pt-36 pb-8 text-center relative z-30 select-none">
+      <footer className="w-full max-w-4xl mx-auto px-4 pt-44 pb-3 text-center relative z-30 select-none">
         <div className="flex flex-col items-center gap-3">
           <div className="w-1.5 h-1.5 rounded-full bg-purple-400/50 animate-ping"></div>
           <p className="font-mono text-xs tracking-[0.25em] text-purple-400/60 uppercase">
