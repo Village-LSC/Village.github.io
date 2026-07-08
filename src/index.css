@@ -44,3 +44,30 @@
   transform: translate(2px, 2px);
   box-shadow: 2px 2px 0px 0px #4e3629;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #visual-tz-document, #visual-tz-document * {
+    visibility: visible;
+  }
+  #visual-tz-document .no-export, .no-export {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  #visual-tz-document {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 24px;
+    background: #150624 !important;
+    color: #ebd6f7 !important;
+    border: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
