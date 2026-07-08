@@ -428,7 +428,7 @@ export const TRANSLATIONS = {
     noDeadlineSurchargeNote: '(Скидка 15% не действует при полной загруженности очереди)',
     loadStatusLabel: 'Загруженность очереди:',
     loadStatusFree: 'Свободный',
-    loadStatusMedium: 'Средний (+25% на весь заказ)',
+    loadStatusMedium: 'Средний (+20% на весь заказ)',
     loadStatusFull: 'Полный (+35% на весь заказ)',
     loadStatusFullNoDeadline: 'Полный (+35%, только без дедлайна)',
     orderBlockedWarning: 'Внимание! Прием стандартных заказов временно приостановлен из-за полной загруженности исполнителя. Размещение заказа возможно только с опцией «Без дедлайна» (действует наценка +35%, скидка 15% отключена).'
@@ -551,7 +551,7 @@ export const TRANSLATIONS = {
     noDeadlineSurchargeNote: '(15% discount is deactivated under full load status)',
     loadStatusLabel: 'Queue Load Status:',
     loadStatusFree: 'Free',
-    loadStatusMedium: 'Medium (+25% on entire order)',
+    loadStatusMedium: 'Medium (+20% on entire order)',
     loadStatusFull: 'Full (+35% on entire order)',
     loadStatusFullNoDeadline: 'Full (+35%, only No Deadline allowed)',
     orderBlockedWarning: 'Notice! Standard orders are temporarily suspended due to full workload. Ordering is only available with the "No Deadline" option selected (+35% surcharge applies, 15% discount is deactivated).'

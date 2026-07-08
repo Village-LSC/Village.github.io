@@ -1634,9 +1634,9 @@ export default function App() {
     // Subtotal before load surcharges or "no deadline" discounts
     const subtotalPrice = priceBeforeDiscount - bulkDiscountAmount + surchargeAmount;
     
-    // Load markup: +25% if CURRENT_LOAD_STATUS === 1 (Medium), +35% if CURRENT_LOAD_STATUS === 2 (Full)
+    // Load markup: +20% if CURRENT_LOAD_STATUS === 1 (Medium), +35% if CURRENT_LOAD_STATUS === 2 (Full)
     const loadMarkupAmount = CURRENT_LOAD_STATUS === 1 
-      ? Math.round(subtotalPrice * 0.25) 
+      ? Math.round(subtotalPrice * 0.20) 
       : CURRENT_LOAD_STATUS === 2 
       ? Math.round(subtotalPrice * 0.35) 
       : 0;
@@ -2036,7 +2036,7 @@ export default function App() {
       const loadStatusText = CURRENT_LOAD_STATUS === 0 
         ? 'Свободный (наценка 0%)' 
         : CURRENT_LOAD_STATUS === 1 
-        ? 'Средний (+25% наценка на весь заказ)' 
+        ? 'Средний (+20% наценка на весь заказ)' 
         : 'Полный (+35% наценка на весь заказ)';
       tzText += `Загруженность очереди: ${loadStatusText}\n`;
       tzText += `Режим сроков заказа: ${noDeadline ? '«Без дедлайна» (долгосрочное ожидание, скидка -15% - отключена при полной загруженности)' : 'Стандартный (с дедлайном)'}\n`;
@@ -2060,7 +2060,7 @@ export default function App() {
       const loadStatusText = CURRENT_LOAD_STATUS === 0 
         ? 'Free (0% surcharge)' 
         : CURRENT_LOAD_STATUS === 1 
-        ? 'Medium (+25% surcharge on entire order)' 
+        ? 'Medium (+20% surcharge on entire order)' 
         : 'Full (+35% surcharge on entire order)';
       tzText += `Queue workload status: ${loadStatusText}\n`;
       tzText += `Selected deadline policy: ${noDeadline ? '"No Deadline" (long-term queue expectation, -15% discount granted - except under full load)' : 'Standard Timeframe (with deadline)'}\n`;
@@ -3684,7 +3684,7 @@ export default function App() {
                         <div className={`font-extrabold ${CURRENT_LOAD_STATUS === 2 ? 'text-rose-400 animate-pulse' : 'text-yellow-400'}`}>
                           {CURRENT_LOAD_STATUS === 2
                             ? (lang === 'ru' ? 'Наценка за полную загруженность очереди (+35%):' : 'Surcharge for full queue workload (+35%):')
-                            : (lang === 'ru' ? 'Наценка за среднюю загруженность очереди (+25%):' : 'Surcharge for medium queue workload (+25%):')
+                            : (lang === 'ru' ? 'Наценка за среднюю загруженность очереди (+20%):' : 'Surcharge for medium queue workload (+20%):')
                           } +{formatPrice(orderCalculations.loadMarkupAmount)}
                         </div>
                       )}
@@ -3785,8 +3785,8 @@ export default function App() {
                 )}
                 {CURRENT_LOAD_STATUS === 1 && (
                   lang === 'ru' 
-                    ? 'Умеренная нагрузка. К стоимости применяется наценка +25%.' 
-                    : 'Moderate workload. A +25% markup is applied to the order.'
+                    ? 'Умеренная нагрузка. К стоимости применяется наценка +20%.' 
+                    : 'Moderate workload. A +20% markup is applied to the order.'
                 )}
                 {CURRENT_LOAD_STATUS === 2 && (
                   lang === 'ru' 
