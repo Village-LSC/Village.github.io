@@ -2,9 +2,13 @@ import React, { useState, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as htmlToImage from 'html-to-image';
 import {
+  ArrowUp,
+  ArrowDown,
+  Edit2,
   Globe,
   Coins,
   Plus,
+  Copy,
   Trash2,
   Clipboard,
   Download,
@@ -43,12 +47,17 @@ import {
   CategoryData,
   SpriteItemState,
   CATEGORIES_LIST,
-  TRANSLATIONS
+  TRANSLATIONS,
+  getQualityPoints
 } from './types';
 import { CURRENT_LOAD_STATUS } from './loadStatus';
 import { PixelMorphAnimation } from './components/PixelMorphAnimation';
 import { CategoryShowcaseAnimation } from './components/CategoryShowcaseAnimation';
 import { CanvasSizePreview } from './components/CanvasSizePreview';
+import { ComplexitySelection } from './components/ComplexitySelection';
+import { AnimationComplexitySelection } from './components/AnimationComplexitySelection';
+import { TotalComplexityCard } from './components/TotalComplexityCard';
+import { CalculationLog } from './components/CalculationLog';
 
 function DitherNebula({ isExpanded }: { isExpanded: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -69,8 +78,8 @@ function DitherNebula({ isExpanded }: { isExpanded: boolean }) {
 
     const handleResize = () => {
       if (canvas) {
-        width = Math.ceil(window.innerWidth / PIXEL_SCALE);
-        height = Math.ceil(window.innerHeight / PIXEL_SCALE);
+        width = Math.max(1, Math.ceil(window.innerWidth / PIXEL_SCALE));
+        height = Math.max(1, Math.ceil(window.innerHeight / PIXEL_SCALE));
         canvas.width = width;
         canvas.height = height;
       }
@@ -256,6 +265,11 @@ function DitherNebula({ isExpanded }: { isExpanded: boolean }) {
       // Slower spring-like animation (0.025) for beautiful physics
       hStartRef.current! += diff * 0.025;
       const hStart = hStartRef.current!;
+
+      if (width <= 0 || height <= 0) {
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
 
       const imgData = ctx.createImageData(width, height);
       const data = imgData.data;
@@ -444,13 +458,13 @@ function SeedParticleBurst() {
     if (!ctx) return;
 
     let animationFrameId: number;
-    let width = (canvas.width = canvas.offsetWidth);
-    let height = (canvas.height = canvas.offsetHeight);
+    let width = (canvas.width = Math.max(1, canvas.offsetWidth));
+    let height = (canvas.height = Math.max(1, canvas.offsetHeight));
 
     const handleResize = () => {
       if (canvas) {
-        width = canvas.width = canvas.offsetWidth;
-        height = canvas.height = canvas.offsetHeight;
+        width = canvas.width = Math.max(1, canvas.offsetWidth);
+        height = canvas.height = Math.max(1, canvas.offsetHeight);
       }
     };
     window.addEventListener('resize', handleResize);
@@ -539,30 +553,16 @@ function SeedParticleBurst() {
 }
 
 interface SquareFrameProps {
+  cat: CategoryData;
   imagePath: string;
-  catId: string;
   lang: string;
-  basePrice: number;
-  pixelPrice: number;
-  maxBaseSize: number;
   formatPrice: (val: number) => string;
-  exampleSize: string;
-  examplePrice: string;
-  isMinecraft?: boolean;
 }
 
-function SquareFrame({
-  imagePath,
-  catId,
-  lang,
-  basePrice,
-  pixelPrice,
-  maxBaseSize,
-  formatPrice,
-  exampleSize,
-  examplePrice,
-  isMinecraft
-}: SquareFrameProps) {
+function SquareFrame({ cat, imagePath, lang, formatPrice }: SquareFrameProps) {
+  const preferredSize = lang === 'ru' ? cat.preferredSizeRu : cat.preferredSizeEn;
+  const popularResText = lang === 'ru' ? cat.popularResRu : cat.popularResEn;
+
   return (
     <div className="flex flex-col items-center shrink-0 w-full xl:w-auto group">
       {/* Square Frame (1.5 times larger: w-64 to w-96 responsive grid) with thick border and double outline on hover */}
@@ -576,8 +576,8 @@ function SquareFrame({
           {/* Shaded bottom-half */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-white/5 pointer-events-none z-10"></div>
 
-          {['1', '2', '3', '4', '5', '6', '7'].includes(catId) ? (
-            <PixelMorphAnimation catId={catId} className="absolute inset-0 w-full h-full object-contain z-30 pointer-events-none" />
+          {['1', '2', '3', '4', '5', '6', '7'].includes(cat.id) ? (
+            <PixelMorphAnimation catId={cat.id} className="absolute inset-0 w-full h-full object-contain z-30 pointer-events-none" />
           ) : (
             imagePath && (
               <img
@@ -594,38 +594,44 @@ function SquareFrame({
         </div>
       </div>
 
-      {/* Pricing info situated directly UNDER the square picture frame - widened to match 1.5x dimensions */}
+      {/* Pricing info situated directly UNDER the square picture frame */}
       <div className="mt-4 w-64 sm:w-72 lg:w-80 xl:w-[350px] bg-[#2d143f] rounded-2xl border-2 border-[#3d1a56] p-4 text-xs sm:text-sm space-y-2.5 text-[#ebd6f7] shadow-inner transition-all duration-300 group-hover:border-purple-300 group-hover:shadow-[0_0_20px_rgba(192,132,252,0.25)]">
+        
+        {/* 1. Начальная ставка */}
         <div className="flex justify-between items-center text-xs sm:text-sm font-bold transition-all duration-300">
-          <span className="text-[#ebd6f7]/60 group-hover:text-white/80 uppercase tracking-wider">
-            {lang === 'ru' ? 'Цена:' : 'Price:'}
+          <span className="text-[#ebd6f7]/70 group-hover:text-white/90 uppercase tracking-wider text-left">
+            {lang === 'ru' ? 'Начальная ставка:' : 'Starting rate:'}
           </span>
-          <span className="font-bold font-mono text-purple-300 group-hover:text-white transition-all text-xs sm:text-sm">
-            {isMinecraft ? (
-              `${formatPrice(basePrice)}`
-            ) : (
-              `${formatPrice(basePrice)} + ${formatPrice(pixelPrice)}/px`
-            )}
+          <span className="font-bold font-mono text-purple-300 group-hover:text-white transition-all text-xs sm:text-sm shrink-0">
+            {formatPrice(cat.basePrice)}
           </span>
         </div>
 
-        {!isMinecraft && (
-          <div className="flex justify-between items-center border-t border-[#3d1a56] pt-2 text-xs sm:text-sm font-bold transition-all duration-300">
-            <span className="text-[#ebd6f7]/60 group-hover:text-white/80 uppercase tracking-wider text-left max-w-[70%] leading-tight">
-              {lang === 'ru' ? 'Максимальный предпочтительный размер:' : 'Maximum preferred size:'}
+        {/* 2. Предпочтительный размер */}
+        <div className="flex justify-between items-center border-t border-[#3d1a56] pt-2 text-xs sm:text-sm font-bold transition-all duration-300">
+          <span className="text-[#ebd6f7]/70 group-hover:text-white/90 uppercase tracking-wider text-left max-w-[60%] leading-tight">
+            {lang === 'ru' ? 'Предпочтительный размер:' : 'Preferred size:'}
+          </span>
+          <span className="font-bold font-mono text-[#f1e5f8] group-hover:text-white transition-colors shrink-0 text-xs sm:text-sm">
+            {preferredSize}
+          </span>
+        </div>
+
+        {/* 3. Примерная цена (популярное разрешение и среднее качество) */}
+        <div className="flex justify-between items-start border-t border-[#3d1a56] pt-2 text-xs sm:text-sm font-bold transition-all duration-300">
+          <div className="flex flex-col text-left max-w-[62%] pr-1">
+            <span className="text-[#ebd6f7]/70 group-hover:text-white/90 uppercase tracking-wider leading-tight">
+              {lang === 'ru' ? 'Примерная цена:' : 'Approx. price:'}
             </span>
-            <span className="font-bold font-mono text-[#f1e5f8] group-hover:text-white transition-colors shrink-0 text-xs sm:text-sm">
-              {maxBaseSize}px
+            <span className="text-xs sm:text-sm text-purple-300 font-medium normal-case leading-tight mt-0.5">
+              {popularResText}
             </span>
           </div>
-        )}
-
-        <div className="flex justify-between items-center border-t border-[#3d1a56] pt-2 text-xs sm:text-sm text-purple-300 font-bold uppercase tracking-wider transition-all duration-300">
-          <span className="group-hover:text-purple-200">{lang === 'ru' ? 'Пример:' : 'Example:'}</span>
-          <span className="font-mono text-xs sm:text-sm text-[#f1e5f8] group-hover:text-white transition-colors">
-            {exampleSize} ≈ {examplePrice}
+          <span className="font-bold font-mono text-emerald-400 group-hover:text-emerald-300 transition-colors shrink-0 text-xs sm:text-sm mt-0.5">
+            ~{formatPrice(cat.popularPriceNum)}
           </span>
         </div>
+
       </div>
     </div>
   );
@@ -686,8 +692,8 @@ function InteractiveDitherBackground({ mousePos }: InteractiveDitherProps) {
       // Fixed pixel scale for all devices to prevent mobile lag and maintain pixel-art consistency
       scale = 8;
 
-      canvas.width = Math.ceil(window.innerWidth / scale);
-      canvas.height = Math.ceil(window.innerHeight / scale);
+      canvas.width = Math.max(1, Math.ceil(window.innerWidth / scale));
+      canvas.height = Math.max(1, Math.ceil(window.innerHeight / scale));
       
       // Keep center coordinate in sync on resize
       currentCX = window.innerWidth / 2;
@@ -942,21 +948,27 @@ function RegularTextbox({ children, className = "" }: RegularTextboxProps) {
 }
 
 /**
- * Calculates the final prepayment percentage based on the total order price and base prepayment percentage.
- * Uses a logarithmic function to avoid if-else or switch threshold chains.
+ * Calculates the final prepayment percentage based on the total order price.
+ * Follows the prepayment scale table:
+ * 0 - 2,000 RUB: 50%
+ * 2,001 - 4,000 RUB: 45%
+ * 4,001 - 6,000 RUB: 40%
+ * 6,001 - 8,000 RUB: 35%
+ * 8,001 - 10,000 RUB: 30%
+ * 10,001 - 15,000 RUB: 25%
+ * 15,001 - 20,000 RUB: 20%
+ * Over 20,000 RUB: 10%
  */
 function calculatePrepaymentPercent(basePercent: number, totalPrice: number): number {
-  const threshold = 2000;
-  const reductionStep = 5;
-  const minPercent = 10;
-
   const checkedPrice = Math.max(0, totalPrice);
-  const factor = checkedPrice / threshold;
-  const logTerm = factor > 0 ? Math.floor(Math.log2(factor)) + 1 : 0;
-  const reductions = Math.max(0, logTerm);
-
-  const calculatedPercent = basePercent - (reductions * reductionStep);
-  return Math.max(minPercent, calculatedPercent);
+  if (checkedPrice <= 2000) return 50;
+  if (checkedPrice <= 4000) return 45;
+  if (checkedPrice <= 6000) return 40;
+  if (checkedPrice <= 8000) return 35;
+  if (checkedPrice <= 10000) return 30;
+  if (checkedPrice <= 15000) return 25;
+  if (checkedPrice <= 20000) return 20;
+  return 10;
 }
 
 export default function App() {
@@ -978,8 +990,12 @@ export default function App() {
 
   // Animated Background Enable State
   const [isBgEnabled, setIsBgEnabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('isBgEnabled');
-    return saved !== null ? saved === 'true' : true;
+    try {
+      const saved = localStorage.getItem('isBgEnabled');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
   });
 
   // Collapse / Expand state for the content below the header
@@ -988,7 +1004,9 @@ export default function App() {
   const toggleBg = () => {
     setIsBgEnabled(prev => {
       const next = !prev;
-      localStorage.setItem('isBgEnabled', String(next));
+      try {
+        localStorage.setItem('isBgEnabled', String(next));
+      } catch (e) {}
       return next;
     });
   };
@@ -1046,12 +1064,16 @@ export default function App() {
   const [validationError, setValidationError] = useState<boolean>(false);
   const [spriteCounter, setSpriteCounter] = useState<number>(1);
   const [expandedSprites, setExpandedSprites] = useState<{ [key: number]: boolean }>({ 1: true });
+  const [renamingSpriteId, setRenamingSpriteId] = useState<number | null>(null);
   const [activeSpecTab, setActiveSpecTab] = useState<'visual' | 'text' | 'guide'>('visual');
   const [showPrepaymentBrackets, setShowPrepaymentBrackets] = useState<boolean>(false);
   const [openStepTooltip, setOpenStepTooltip] = useState<number | null>(null);
 
   // Active expanded help cards per sprite block to show formulas
   const [activeHelp, setActiveHelp] = useState<{ [key: string]: boolean }>({});
+  const [detailHelp, setDetailHelp] = useState<{ [key: string]: boolean }>({});
+  const [designHelp, setDesignHelp] = useState<{ [key: string]: boolean }>({});
+  const [isometryHelp, setIsometryHelp] = useState<{ [key: string]: boolean }>({});
 
   // Interactive Terms of Collaboration states
   const [attributionCopied, setAttributionCopied] = useState<boolean>(false);
@@ -1083,13 +1105,17 @@ export default function App() {
           c: s.categoryId,
           w: s.width,
           h: s.height,
+          st: s.skinType || '1',
           co: s.countOrig,
           cv: s.countVar,
-          f: s.frames,
-          q: s.quality === 'best' ? 'b' : s.quality === 'medium' ? 'm' : 'o',
+          f: s.framesDirect,
+          q: s.quality || 'optimal',
           ha: s.hasAnimation,
-          at: s.animType === 'complex' ? 'c' : s.animType === 'simple' ? 'i' : 's',
-          d: s.description
+          d: s.description,
+          iso: s.isometry ? 1 : 0,
+          dl: s.detailLevel || 'simple',
+          ac: s.animComplexity || 'simple',
+          dm: s.designMode || 'reference'
         }))
       };
       const json = JSON.stringify(data);
@@ -1125,21 +1151,31 @@ export default function App() {
       
       if (Array.isArray(data.items)) {
         const loadedSprites: SpriteItemState[] = data.items.map((item: any, idx: number) => {
-          const qStr = item.q === 'b' ? 'best' : item.q === 'm' ? 'medium' : 'optimal';
-          const atStr = item.at === 'c' ? 'complex' : item.at === 'i' ? 'simple' : 'static';
+          const detailLvl = item.dl || (item.q === 'best' ? 'detailed' : item.q === 'medium' ? 'moderate' : 'simple');
+          const animComp = item.ac || 'simple';
+          const designMd = item.dm || 'reference';
+          const isIsometric = item.iso === 1;
+
           return {
             id: Date.now() + idx, // unique id
             categoryId: String(item.c || '1'),
             width: Number(item.w ?? 32),
             height: Number(item.h ?? 32),
+            skinType: (item.st === '2' ? '2' : '1'),
             countOrig: Number(item.co ?? 1),
             countVar: Number(item.cv ?? 0),
-            frames: Number(item.f ?? 1),
-            quality: qStr as 'optimal' | 'medium' | 'best',
             hasAnimation: Boolean(item.ha),
-            animType: atStr as 'static' | 'simple' | 'complex',
+            frameMode: 'direct',
+            framesDirect: Number(item.f ?? 1),
+            animDuration: 3,
+            animDelay: 0.5,
             description: String(item.d || ''),
-            templateSize: ''
+            templateSize: '',
+            quality: item.q === 'best' ? 'best' : item.q === 'medium' ? 'medium' : 'optimal',
+            isometry: isIsometric,
+            detailLevel: detailLvl as 'simple' | 'moderate' | 'detailed',
+            animComplexity: animComp as 'simple' | 'medium' | 'complex',
+            designMode: designMd as 'reference' | 'scratch'
           };
         });
         
@@ -1398,83 +1434,185 @@ export default function App() {
     return `${rubValue.toLocaleString(lang === 'ru' ? 'ru-RU' : 'en-US')} ₽`;
   };
 
+  // Pixel step table based on General Complexity (GC) and preferred size limit (maxBaseSize)
+  const getPixelStepForGeneralComplexity = (gc: number, maxBaseSize: number): number => {
+    const maxStep = maxBaseSize / 8;
+    const minStep = Math.max(4, Math.min(8, Math.round(maxStep * 0.15)));
+    
+    if (gc < 4) return Math.round(maxStep);
+    if (gc >= 24) return Math.round(minStep);
+    
+    // Linear interpolation factor between 0.0 (at gc = 3) and 1.0 (at gc = 24)
+    const ratio = (gc - 3) / 21;
+    const stepValue = maxStep - ratio * (maxStep - minStep);
+    return Math.round(stepValue);
+  };
+
+  // Complexity Category name
+  const getComplexityCategory = (complexity: number, currentLang: 'ru' | 'en'): string => {
+    if (complexity > 100) return currentLang === 'ru' ? 'Максимальная' : 'Maximum';
+    if (complexity <= 15) return currentLang === 'ru' ? 'Низкая' : 'Low';
+    if (complexity <= 30) return currentLang === 'ru' ? 'Оптимальная' : 'Optimal';
+    if (complexity <= 50) return currentLang === 'ru' ? 'Средняя' : 'Medium';
+    if (complexity <= 70) return currentLang === 'ru' ? 'Умеренная' : 'Moderate';
+    if (complexity <= 85) return currentLang === 'ru' ? 'Сложная' : 'Complex';
+    if (complexity <= 100) return currentLang === 'ru' ? 'Экстремальная' : 'Extreme';
+    return currentLang === 'ru' ? 'Максимальная' : 'Maximum';
+  };
+
   // Helper to calculate a single sprite position
   const calculateSpritePrice = (sprite: SpriteItemState) => {
     const cat = CATEGORIES_LIST.find(c => c.id === sprite.categoryId) || CATEGORIES_LIST[0];
     
-    const isInvalidSize = sprite.categoryId !== '7' && (sprite.width > 2000 || sprite.height > 2000);
+    const isInvalidSize = sprite.categoryId !== '7' && (sprite.width > 1000 || sprite.height > 1000);
     
-    let baseCalculatedPrice = 0;
+    let baseCalculatedPrice = cat.basePrice;
     let sizeFactor = 0;
     let sizeInfo = '';
-    let sizeSurplusModifier = 1.0;
-
+    let baseDiscountPercent = 0;
+    
     if (sprite.categoryId === '7') {
-      // Minecraft Skin specific pricing
+      // Minecraft Skin specific pricing (stays fixed at standard/HD rate)
       const skinMult = sprite.skinType === '2' ? 2 : 1;
       baseCalculatedPrice = cat.basePrice * skinMult;
       sizeInfo = sprite.skinType === '2' ? t.hdText : t.standardText;
-      sizeFactor = sprite.skinType === '2' ? 512 : 64;
-      
-      if (sizeFactor > cat.maxBaseSize) {
-        const extraPixels = sizeFactor - cat.maxBaseSize;
-        sizeSurplusModifier = 1.0 + (extraPixels * 0.005);
-      }
+      sizeFactor = sprite.skinType === '2' ? 128 : 64;
     } else {
-      // Standard resolution sizing
+      // Standard resolution sizing size factor
       const w = Math.max(1, sprite.width);
       const h = Math.max(1, sprite.height);
       sizeFactor = Math.round(Math.sqrt(w * h));
-      baseCalculatedPrice = cat.basePrice + (sizeFactor * cat.pixelPrice);
       sizeInfo = `${w}×${h} px`;
-
-      if (sizeFactor > cat.maxBaseSize) {
-        const extraPixels = sizeFactor - cat.maxBaseSize;
-        sizeSurplusModifier = 1.0 + (extraPixels * 0.005);
+      
+      // If the selected size is strictly less than the category minimum size, the base price is reduced dynamically:
+      // The smaller the size, the bigger the discount (up to 80% max discount)
+      if (cat.minBaseSize && sizeFactor < cat.minBaseSize) {
+        const discountRatio = 1 - (sizeFactor / cat.minBaseSize);
+        baseDiscountPercent = Math.max(0, Math.min(80, Math.round(discountRatio * 80)));
+        baseCalculatedPrice = Math.round(cat.basePrice * (1 - baseDiscountPercent / 100));
       }
     }
 
-    // Animation frame calculations
+    // Complexity score calculation
+    let generalComplexity = 0;
+    let baseGeneralComplexity = 0;
+    let detailLevel: 'simple' | 'moderate' | 'detailed' = 'simple';
+    let animComplexity: 'simple' | 'medium' | 'complex' = 'simple';
+    let designMode: 'reference' | 'scratch' = 'reference';
+    let isometry = false;
     let frames = 1;
     let animModeLogText = t.standardText;
 
-    if (sprite.hasAnimation && cat.supportsAnimation) {
-      if (sprite.frameMode === 'direct') {
-        frames = Math.max(1, sprite.framesDirect);
-        animModeLogText = `${t.animMethodDirect}: ${frames} ${t.tzFrames}`;
+    if (sprite.categoryId !== '7') {
+      isometry = sprite.isometry || false;
+
+      detailLevel = sprite.detailLevel || (sprite.quality === 'best' ? 'detailed' : sprite.quality === 'medium' ? 'moderate' : 'simple');
+      const detailPoints = getQualityPoints(sprite.categoryId, detailLevel);
+
+      designMode = sprite.designMode || 'reference';
+
+      let animPoints = 0;
+      let framePoints = 0;
+
+      if (sprite.hasAnimation && cat.supportsAnimation) {
+        if (sprite.frameMode === 'direct') {
+          frames = Math.max(1, sprite.framesDirect);
+          animModeLogText = `${t.animMethodDirect}: ${frames} ${t.tzFrames}`;
+        } else {
+          const duration = sprite.animDuration || 0.1;
+          const delay = Math.max(0.01, sprite.animDelay || 0.1);
+          frames = Math.max(1, Math.round(duration / delay));
+          animModeLogText = `${t.animMethodCalc}: ${duration}s / ${delay}s = ${frames} ${t.tzFrames}`;
+        }
+
+        animComplexity = sprite.animComplexity || 'simple';
+        animPoints = animComplexity === 'complex' ? 10 : animComplexity === 'medium' ? 5 : 0;
+        
+        if (animComplexity === 'complex') {
+          framePoints = Math.ceil(frames / 2);
+        } else if (animComplexity === 'medium') {
+          framePoints = Math.ceil(frames / 4);
+        } else {
+          framePoints = Math.ceil(frames / 6);
+        }
+      }
+
+      baseGeneralComplexity = detailPoints + animPoints + framePoints;
+      
+      let generalMultiplier = 1.0;
+      if (designMode === 'scratch') generalMultiplier += 0.5;
+      if (isometry) generalMultiplier += 0.5;
+      generalComplexity = Math.round(baseGeneralComplexity * generalMultiplier);
+    }
+
+    let dimensionalComplexity = 0;
+    let step = 16;
+    if (sprite.categoryId !== '7') {
+      step = getPixelStepForGeneralComplexity(baseGeneralComplexity, cat.maxBaseSize);
+      dimensionalComplexity = Math.floor(sizeFactor / step);
+    }
+
+    const baseTotalComplexity = baseGeneralComplexity + dimensionalComplexity;
+    let totalComplexityMultiplier = 1.0;
+    if (sprite.categoryId !== '7') {
+      if (designMode === 'scratch') totalComplexityMultiplier += 0.5;
+      if (isometry) totalComplexityMultiplier += 0.5;
+    }
+    const totalComplexity = sprite.categoryId === '7' ? 0 : Math.round(baseTotalComplexity * totalComplexityMultiplier);
+    const isImpossible = totalComplexity > 100;
+    
+    // Each complexity point (quality bracket) adds progressive percentages:
+    // 0-10: +10% per point
+    // 10-20: +15% per point
+    // 20-30: +20% per point
+    // 30-40: +25% per point
+    // 40-50: +30% per point
+    // 50+: +35% per point
+    let animatedSinglePrice = baseCalculatedPrice;
+    if (sprite.categoryId !== '7') {
+      let surchargePercent = 0;
+      if (totalComplexity <= 10) {
+        surchargePercent = totalComplexity * 0.10;
+      } else if (totalComplexity <= 20) {
+        surchargePercent = (10 * 0.10) + (totalComplexity - 10) * 0.15;
+      } else if (totalComplexity <= 30) {
+        surchargePercent = (10 * 0.10) + (10 * 0.15) + (totalComplexity - 20) * 0.20;
+      } else if (totalComplexity <= 40) {
+        surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (totalComplexity - 30) * 0.25;
+      } else if (totalComplexity <= 50) {
+        surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (10 * 0.25) + (totalComplexity - 40) * 0.30;
+      } else if (totalComplexity <= 100) {
+        surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (10 * 0.25) + (10 * 0.30) + (totalComplexity - 50) * 0.35;
       } else {
-        const duration = sprite.animDuration || 0.1;
-        const delay = Math.max(0.01, sprite.animDelay || 0.1);
-        frames = Math.max(1, Math.round(duration / delay));
-        animModeLogText = `${t.animMethodCalc}: ${duration}s / ${delay}s = ${frames} ${t.tzFrames}`;
+        surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (10 * 0.25) + (10 * 0.30) + (50 * 0.35) + (totalComplexity - 100) * 1.00;
+      }
+      animatedSinglePrice = Math.round(baseCalculatedPrice * (1 + surchargePercent));
+    }
+
+    // Dynamic size limit surcharge:
+    // If resolution exceeds cat.maxBaseSize by 1px -> +0.5%
+    // If resolution exceeds cat.maxBaseSize by 100px -> +40%
+    // Up to +50% max surcharge
+    let sizeSurplusModifier = 1.0;
+    if (sprite.categoryId !== '7' && cat.maxBaseSize) {
+      const maxDim = Math.max(sprite.width, sprite.height);
+      const excess = Math.max(0, maxDim - cat.maxBaseSize);
+      if (excess > 0) {
+        let extraPercent = 0;
+        if (excess === 1) {
+          extraPercent = 0.5;
+        } else if (excess <= 100) {
+          extraPercent = 0.5 + (excess - 1) * ((40 - 0.5) / 99);
+        } else {
+          extraPercent = Math.min(50, 40 + (excess - 100) * 0.4);
+        }
+        sizeSurplusModifier = 1.0 + (extraPercent / 100);
       }
     }
 
-    // Base animated frame additions (+20% for each extra frame)
-    let animatedSinglePrice = baseCalculatedPrice;
-    if (frames > 1) {
-      const extraFrames = frames - 1;
-      animatedSinglePrice = baseCalculatedPrice + (baseCalculatedPrice * 0.2 * extraFrames);
-    }
-
-    // Apply linear canvas overflow penalty
     if (sizeSurplusModifier > 1.0) {
-      animatedSinglePrice = animatedSinglePrice * sizeSurplusModifier;
+      animatedSinglePrice = Math.round(animatedSinglePrice * sizeSurplusModifier);
     }
-
-    // Quality Surcharge
-    const qualityStr = sprite.quality || 'optimal';
-    let qualitySurchargePercent = 0;
-    if (qualityStr === 'medium') {
-      qualitySurchargePercent = 25;
-    } else if (qualityStr === 'best') {
-      qualitySurchargePercent = 50;
-    }
-    const qualityMultiplier = 1 + (qualitySurchargePercent / 100);
-    animatedSinglePrice = animatedSinglePrice * qualityMultiplier;
-
-    // Final rounding
-    animatedSinglePrice = Math.round(animatedSinglePrice);
 
     // Variant calculation (50% value of full animated cost)
     const singleVarPrice = Math.round(animatedSinglePrice * 0.5);
@@ -1486,6 +1624,7 @@ export default function App() {
       totalPrice: totalBlockPrice,
       isInvalidSize,
       baseCalculatedPrice,
+      baseDiscountPercent,
       animatedSinglePrice,
       singleVarPrice,
       blockOrigTotal,
@@ -1500,8 +1639,21 @@ export default function App() {
       countOrig: sprite.countOrig,
       countVar: sprite.countVar,
       description: sprite.description.trim(),
-      quality: qualityStr,
-      qualitySurchargePercent
+      generalComplexity,
+      dimensionalComplexity,
+      totalComplexity,
+      baseGeneralComplexity: sprite.categoryId === '7' ? 0 : baseGeneralComplexity,
+      baseTotalComplexity: sprite.categoryId === '7' ? 0 : baseTotalComplexity,
+      totalComplexityMultiplier,
+      isImpossible,
+      complexityStep: step,
+      complexityCategory: getComplexityCategory(totalComplexity, lang),
+      detailLevel,
+      animComplexity,
+      designMode,
+      isometry,
+      quality: sprite.quality || 'optimal',
+      qualitySurchargePercent: 0
     };
   };
 
@@ -1535,7 +1687,7 @@ export default function App() {
       for (let i = 0; i < s.countOrig; i++) {
         cumulativeSprites++;
         if (cumulativeSprites > 100) {
-          surchargeBreakdownOrig += Math.round(res.animatedSinglePrice * actualSpeedRate * 10);
+          surchargeBreakdownOrig += Math.round(res.animatedSinglePrice * actualSpeedRate * 1);
         }
         if (!isLargeSpecification) {
           let discountPercent = 0;
@@ -1554,7 +1706,7 @@ export default function App() {
       for (let i = 0; i < s.countVar; i++) {
         cumulativeSprites++;
         if (cumulativeSprites > 100) {
-          surchargeBreakdownVar += Math.round(res.singleVarPrice * actualSpeedRate * 10);
+          surchargeBreakdownVar += Math.round(res.singleVarPrice * actualSpeedRate * 1);
         }
         if (!isLargeSpecification) {
           let discountPercent = 0;
@@ -1586,7 +1738,7 @@ export default function App() {
         : 0;
         
       const itemNoDeadlineDiscountAmount = (noDeadline && CURRENT_LOAD_STATUS !== 2) 
-        ? Math.round((itemSubtotalPrice + itemLoadMarkupAmount) * 0.15) 
+        ? Math.round((itemSubtotalPrice + itemLoadMarkupAmount) * 0.25) 
         : 0;
         
       const itemFinalPrice = Math.max(0, itemSubtotalPrice + itemLoadMarkupAmount - itemNoDeadlineDiscountAmount);
@@ -1607,29 +1759,58 @@ export default function App() {
       let itemLog = `${idx + 1}. [${res.categoryName}] (Size: ${res.sizeInfo})\n`;
       const baseCategoryPrice = CATEGORIES_LIST.find(c => c.id === s.categoryId)?.basePrice || 0;
       itemLog += `   • Base category rate: ${formatPrice(baseCategoryPrice)}\n`;
-      if (s.categoryId !== '7') {
-        const pixelPriceVal = CATEGORIES_LIST.find(c => c.id === s.categoryId)?.pixelPrice || 0;
-        const rateAddition = res.sizeFactor * pixelPriceVal;
-        itemLog += `   • Size factor calculation: √(${s.width}×${s.height}) = ${res.sizeFactor} pixels\n`;
-        itemLog += `   • Rate addition: ${res.sizeFactor}px × ${formatPrice(pixelPriceVal)}/px = +${formatPrice(rateAddition)}\n`;
+
+      if (s.categoryId === '7') {
+        itemLog += `   • Minecraft Skin Type: ${res.sizeInfo}\n`;
+        itemLog += `   • Price per skin: ${formatPrice(res.animatedSinglePrice)}\n`;
+      } else {
+        itemLog += `   • Base General Complexity (Details + Animation): ${res.baseGeneralComplexity}\n`;
+        
+        const qPts = getQualityPoints(s.categoryId, res.detailLevel);
+        const detailLabel = `${res.detailLevel === 'detailed' ? 'Detailed' : res.detailLevel === 'moderate' ? 'Moderate' : 'Optimal'} (+${qPts})`;
+        itemLog += `     - Detail Level: ${detailLabel}\n`;
+        
+        if (s.hasAnimation) {
+          const animLvlLabel = res.animComplexity === 'complex' ? 'Complex (+10)' : res.animComplexity === 'medium' ? 'Medium (+5)' : 'Simple (0)';
+          const animMultiplier = res.animComplexity === 'complex' ? 1.5 : res.animComplexity === 'medium' ? 1.0 : 0.5;
+          const animDivider = res.animComplexity === 'complex' ? 2 : res.animComplexity === 'medium' ? 4 : 6;
+          itemLog += `     - Animation Style: ${animLvlLabel}\n`;
+          itemLog += `     - Frame count: ${res.frames} frames / ${animDivider} = +${Math.ceil(res.frames / animDivider)}\n`;
+        }
+        
+        itemLog += `   • Dimensional Complexity: sqrt(${s.width}×${s.height}) = ${res.sizeFactor} px size factor\n`;
+        itemLog += `     - Pixel step for GC ${res.baseGeneralComplexity} is ${res.complexityStep} px\n`;
+        itemLog += `     - Dimensional Complexity = floor(${res.sizeFactor} / ${res.complexityStep}) = +${res.dimensionalComplexity}\n`;
+        
+        itemLog += `   • Base Total Complexity: ${res.baseGeneralComplexity} + ${res.dimensionalComplexity} = ${res.baseTotalComplexity}\n`;
+        
+        let multText = '1.0 (Standard)';
+        if (res.designMode === 'scratch' && res.isometry) {
+          multText = '2.0 (+50% from scratch design, +50% isometric view)';
+        } else if (res.designMode === 'scratch') {
+          multText = '1.5 (+50% from scratch design)';
+        } else if (res.isometry) {
+          multText = '1.5 (+50% isometric view)';
+        }
+        itemLog += `   • Complexity Multiplier: ${multText}\n`;
+        itemLog += `   • Total Complexity: Math.round(${res.baseTotalComplexity} * ${res.totalComplexityMultiplier}) = ${res.totalComplexity} (${res.complexityCategory})\n`;
+        
+        if (res.totalComplexity <= 100) {
+          const surchargePct = Math.round((res.animatedSinglePrice / baseCategoryPrice - 1) * 100);
+          itemLog += `   • Наценка за сложность: +${surchargePct}% к базовой стоимости\n`;
+          itemLog += `   • Стоимость оригинала: ${formatPrice(res.animatedSinglePrice)}\n`;
+        } else {
+          const surchargePct = Math.round((res.animatedSinglePrice / baseCategoryPrice - 1) * 100);
+          itemLog += `   • Наценка за сверхсложность (>100): +${surchargePct}% к базовой стоимости (+100% за каждое очко выше 100)\n`;
+          itemLog += `   • Стоимость оригинала: ${formatPrice(res.animatedSinglePrice)}\n`;
+        }
+
+        if (res.sizeSurplusModifier > 1.0) {
+          const surplusPct = ((res.sizeSurplusModifier - 1.0) * 100).toFixed(1).replace('.0', '');
+          itemLog += `   • Size limit surcharge: +${surplusPct}% (resolution exceeds max size ${res.maxBaseSize}px)\n`;
+        }
       }
-      itemLog += `   • Base Static Price: ${formatPrice(res.baseCalculatedPrice)}\n`;
-      if (res.frames > 1) {
-        itemLog += `   • Animation frames: ${res.frames} (${res.animModeLogText})\n`;
-        const animatedRateVal = Math.round(res.baseCalculatedPrice * (1 + 0.2 * (res.frames - 1)));
-        itemLog += `   • Animated rate: ${formatPrice(res.baseCalculatedPrice)} + 20% × ${res.frames - 1} extra frames = ${formatPrice(animatedRateVal)}\n`;
-      }
-      if (res.sizeSurplusModifier > 1.0) {
-        const excessPercent = Math.round((res.sizeSurplusModifier - 1.0) * 100);
-        itemLog += `   • OVERFLOW PENALTY (Threshold ${res.maxBaseSize}px exceeded): +${excessPercent}% rate applied\n`;
-      }
-      if (res.qualitySurchargePercent > 0) {
-        const qualityName = res.quality === 'medium' 
-          ? (lang === 'ru' ? 'Среднее качество (+25%)' : 'Medium quality (+25%)') 
-          : (lang === 'ru' ? 'Лучшее качество (+50%)' : 'Best quality (+50%)');
-        itemLog += `   • Quality surcharge: ${qualityName}\n`;
-      }
-      itemLog += `   • Price per original sprite: ${formatPrice(res.animatedSinglePrice)}\n`;
+
       if (s.countVar > 0) {
         itemLog += `   • Price per variant (50%): ${formatPrice(res.singleVarPrice)}\n`;
       }
@@ -1671,9 +1852,9 @@ export default function App() {
       ? Math.round(subtotalPrice * 0.35) 
       : 0;
     
-    // "No deadline" discount: -15% if noDeadline is ON, and load status is NOT 2 (Full)
+    // "No deadline" discount: -25% if noDeadline is ON, and load status is NOT 2 (Full)
     const noDeadlineDiscountAmount = (noDeadline && CURRENT_LOAD_STATUS !== 2) 
-      ? Math.round((subtotalPrice + loadMarkupAmount) * 0.15) 
+      ? Math.round((subtotalPrice + loadMarkupAmount) * 0.25) 
       : 0;
 
     const finalPriceRub = Math.max(0, subtotalPrice + loadMarkupAmount - noDeadlineDiscountAmount);
@@ -1686,14 +1867,16 @@ export default function App() {
       ? Math.round(rawPriceBeforeDiscountTotal * 0.35) 
       : 0;
     const noDeadlineDiscountBeforeDiscount = (noDeadline && CURRENT_LOAD_STATUS !== 2) 
-      ? Math.round((rawPriceBeforeDiscountTotal + loadMarkupBeforeDiscount) * 0.15) 
+      ? Math.round((rawPriceBeforeDiscountTotal + loadMarkupBeforeDiscount) * 0.25) 
       : 0;
     const priceBeforeDiscountTotal = rawPriceBeforeDiscountTotal + loadMarkupBeforeDiscount - noDeadlineDiscountBeforeDiscount;
 
-    // Prepayment bracket rules: calculated using a logarithmic function, but is exactly 50% on large specifications.
-    const prepayPercent = isLargeSpecification ? 50 : calculatePrepaymentPercent(50, finalPriceRub);
+    // Prepayment percentage calculated according to the progressive scale
+    const prepayPercent = calculatePrepaymentPercent(50, finalPriceRub);
 
     const prepayAmountRub = Math.round(finalPriceRub * (prepayPercent / 100));
+
+    const isImpossible = rawItems.some(item => item.isImpossible);
 
     return {
       finalPriceRub,
@@ -1711,7 +1894,8 @@ export default function App() {
       actualSpeedRate,
       loadMarkupAmount,
       noDeadlineDiscountAmount,
-      subtotalPrice
+      subtotalPrice,
+      isImpossible
     };
   }, [sprites, speedRate, noDeadline, lang, currency, usdRate]);
 
@@ -2010,6 +2194,48 @@ export default function App() {
     setSprites(prev => prev.filter(s => s.id !== id));
   };
 
+  const moveSpriteUp = (id: number) => {
+    setSprites(prev => {
+      const idx = prev.findIndex(s => s.id === id);
+      if (idx <= 0) return prev;
+      const newSprites = [...prev];
+      [newSprites[idx - 1], newSprites[idx]] = [newSprites[idx], newSprites[idx - 1]];
+      return newSprites;
+    });
+  };
+
+  const moveSpriteDown = (id: number) => {
+    setSprites(prev => {
+      const idx = prev.findIndex(s => s.id === id);
+      if (idx === -1 || idx === prev.length - 1) return prev;
+      const newSprites = [...prev];
+      [newSprites[idx + 1], newSprites[idx]] = [newSprites[idx], newSprites[idx + 1]];
+      return newSprites;
+    });
+  };
+
+  // Duplicate Sprite Block
+  const duplicateSpriteBlock = (id: number) => {
+    const target = sprites.find(s => s.id === id);
+    if (!target) return;
+    const nextId = spriteCounter + 1;
+    setSpriteCounter(nextId);
+    const duplicated: SpriteItemState = {
+      ...target,
+      id: nextId
+    };
+    setSprites(prev => {
+      const idx = prev.findIndex(s => s.id === id);
+      if (idx !== -1) {
+        const copy = [...prev];
+        copy.splice(idx + 1, 0, duplicated);
+        return copy;
+      }
+      return [...prev, duplicated];
+    });
+    setExpandedSprites(prev => ({ ...prev, [nextId]: prev[id] ?? false }));
+  };
+
   // Update Sprite fields
   const updateSpriteField = (id: number, key: keyof SpriteItemState, value: any) => {
     setSprites(prev => prev.map(s => {
@@ -2055,13 +2281,13 @@ export default function App() {
       return;
     }
 
-    let hasSizeErrors = sprites.some(s => s.categoryId !== '7' && (s.width > 2000 || s.height > 2000));
+    let hasSizeErrors = sprites.some(s => s.categoryId !== '7' && (s.width > 1000 || s.height > 1000));
     if (hasSizeErrors) {
       if (autoScroll) {
         triggerToast(
           lang === 'ru' 
-            ? 'Превышен максимальный размер (2000px)! Пожалуйста, исправьте значения.' 
-            : 'Maximum size exceeded (2000px)! Please correct the values.',
+            ? 'Превышен максимальный размер (1000px)! Пожалуйста, исправьте значения.' 
+            : 'Maximum size exceeded (1000px)! Please correct the values.',
           'error'
         );
       }
@@ -2069,143 +2295,58 @@ export default function App() {
     }
 
     setValidationError(false);
-
     let tzText = ``;
-    if (lang === 'ru') {
-      tzText += `==================================================\n`;
-      tzText += `        ОФИЦИАЛЬНОЕ ТЕХНИЧЕСКОЕ ЗАДАНИЕ\n`;
-      tzText += `              СПЕЦИФИКАЦИЯ ЗАКАЗА\n`;
-      tzText += `==================================================\n`;
-      tzText += `Исполнитель: Village_ (errorsbills@gmail.com)\n`;
-      tzText += `Статус: Готов к обсуждению\n`;
-      tzText += `Дата формирования: ${new Date().toLocaleDateString('ru-RU')} ${new Date().toLocaleTimeString('ru-RU')}\n\n`;
-      
-      tzText += `--------------------------------------------------\n`;
-      tzText += `1. ОБЩАЯ СВОДКА И БЮДЖЕТ ЗАКАЗА\n`;
-      tzText += `--------------------------------------------------\n`;
-      tzText += `• Валюта расчетов: RUB (₽)\n`;
-      tzText += `• Всего спрайтов в спецификации: ${orderCalculations.totalSpritesCount} шт.\n`;
-      
-      const loadText = CURRENT_LOAD_STATUS === 0 ? 'Свободный (наценка 0%)' : CURRENT_LOAD_STATUS === 1 ? 'Средний (+20% наценка на заказ)' : 'Полный (+35% наценка на заказ)';
-      tzText += `\n• ФОРМУЛА РАСЧЕТА СТОИМОСТИ:\n`;
-      tzText += `  - Базовая сумма позиций: ${formatPrice(orderCalculations.baseTotalRounded)}\n`;
-      tzText += `  - Текущая занятость очереди: ${loadText}\n`;
-      tzText += `  - Режим дедлайнов: ${noDeadline ? '«Без дедлайна» (скидка -15%, отключена при полной загруженности)' : 'Стандартный (с дедлайном)'}\n`;
-      if (orderCalculations.actualSpeedRate !== 1.0) {
-        tzText += `  - Множитель за срочность (Приоритет): ×${orderCalculations.actualSpeedRate} (+25%)\n`;
-      }
-      if (orderCalculations.hasBulkDiscount) {
-        tzText += `  - Оптовая накопительная скидка: -${formatPrice(orderCalculations.bulkDiscountAmount)}\n`;
-      }
-      if (orderCalculations.surchargeAmount > 0) {
-        tzText += `  - Наценка за превышение лимита в 100 спрайтов: +${formatPrice(orderCalculations.surchargeAmount)}\n`;
-      }
-      if (orderCalculations.loadMarkupAmount > 0) {
-        tzText += `  - Наценка за загруженность очереди: +${formatPrice(orderCalculations.loadMarkupAmount)}\n`;
-      }
-      if (orderCalculations.noDeadlineDiscountAmount > 0) {
-        tzText += `  - Скидка за режим без дедлайна (-15%): -${formatPrice(orderCalculations.noDeadlineDiscountAmount)}\n`;
-      }
+    const isRu = lang === 'ru';
+    const dateStr = new Date().toLocaleDateString(isRu ? 'ru-RU' : 'en-US');
 
-      tzText += `\n>>> ИТОГОВАЯ СТОИМОСТЬ ЗАКАЗА: ${formatPrice(orderCalculations.finalPriceRub)}\n`;
-      tzText += `>>> РАЗМЕР ПРЕДОПЛАТЫ (${orderCalculations.prepayPercent}%): ${formatPrice(orderCalculations.prepayAmountRub)}\n`;
-      tzText += `--------------------------------------------------\n\n`;
-
-      tzText += `--------------------------------------------------\n`;
-      tzText += `2. ДЕТАЛЬНЫЙ СПИСОК ПОЗИЦИЙ И РАСЧЕТ СТОИМОСТИ\n`;
-      tzText += `--------------------------------------------------\n`;
-
-      orderCalculations.rawItems.forEach(item => {
-        tzText += `Позиция №${item.index}: Категория «${item.categoryName}»\n`;
-        tzText += `  - Габариты (разрешение): ${item.sizeInfo}\n`;
-        tzText += `  - Анимация: ${item.frames} кадров (${item.animModeLogText})\n`;
-        tzText += `  - Качество проработки: ${item.quality === 'best' ? 'Лучшее (+50%)' : item.quality === 'medium' ? 'Среднее (+25%)' : 'Оптимальное (Базовое)'}\n`;
-        tzText += `  - Количество оригиналов: ${item.countOrig} шт.\n`;
-        tzText += `  - Количество вариаций (подвидов): ${item.countVar} шт.\n`;
-        tzText += `  - Описание задачи (ТЗ): ${item.description || 'Нет описания'}\n`;
-        
-        tzText += `  - Финальная стоимость позиции: ${formatPrice(item.itemFinalPrice)}\n\n`;
-      });
-
-      tzText += `--------------------------------------------------\n`;
-      tzText += `3. СИД ВОССТАНОВЛЕНИЯ КОНФИГУРАЦИИ ЗАКАЗА\n`;
-      tzText += `--------------------------------------------------\n`;
-      tzText += `${generatedSeed}\n\n`;
-
-      tzText += `--------------------------------------------------\n`;
-      tzText += `4. ВАЖНЫЕ УСЛОВИЯ И ПРИМЕЧАНИЯ\n`;
-      tzText += `--------------------------------------------------\n`;
-      tzText += `${t.tzUrlNote}\n`;
-      tzText += `==================================================\n`;
-
-    } else {
-      tzText += `==================================================\n`;
-      tzText += `          OFFICIAL TECHNICAL SPECIFICATION\n`;
-      tzText += `                ORDER SPECIFICATION\n`;
-      tzText += `==================================================\n`;
-      tzText += `Artist: Village_ (errorsbills@gmail.com)\n`;
-      tzText += `Status: Ready for review\n`;
-      tzText += `Compiled: ${new Date().toLocaleDateString('en-US')} ${new Date().toLocaleTimeString('en-US')}\n\n`;
-      
-      tzText += `--------------------------------------------------\n`;
-      tzText += `1. ORDER SUMMARY & TOTAL BUDGET\n`;
-      tzText += `--------------------------------------------------\n`;
-      tzText += `• Billing Currency: USD ($)\n`;
-      tzText += `• Total Assets Count: ${orderCalculations.totalSpritesCount} pcs.\n`;
-      
-      const loadTextEng = CURRENT_LOAD_STATUS === 0 ? 'Free (0% surcharge)' : CURRENT_LOAD_STATUS === 1 ? 'Medium (+20% surcharge)' : 'Full (+35% surcharge)';
-      tzText += `\n• COST CALCULATION FORMULA DETAILS:\n`;
-      tzText += `  - Base sum of items: ${formatPrice(orderCalculations.baseTotalRounded)}\n`;
-      tzText += `  - Queue workload status: ${loadTextEng}\n`;
-      tzText += `  - Selected timeframe policy: ${noDeadline ? '"No Deadline" (-15% discount, disabled under full load)' : 'Standard Timeframe'}\n`;
-      if (orderCalculations.actualSpeedRate !== 1.0) {
-        tzText += `  - Queue speed priority multiplier: ×${orderCalculations.actualSpeedRate} (+25%)\n`;
-      }
-      if (orderCalculations.hasBulkDiscount) {
-        tzText += `  - Progressive bulk discount: -${formatPrice(orderCalculations.bulkDiscountAmount)}\n`;
-      }
-      if (orderCalculations.surchargeAmount > 0) {
-        tzText += `  - Over-limit surcharge (>100 sprites): +${formatPrice(orderCalculations.surchargeAmount)}\n`;
-      }
-      if (orderCalculations.loadMarkupAmount > 0) {
-        tzText += `  - Workload status surcharge: +${formatPrice(orderCalculations.loadMarkupAmount)}\n`;
-      }
-      if (orderCalculations.noDeadlineDiscountAmount > 0) {
-        tzText += `  - No-deadline discount (-15%): -${formatPrice(orderCalculations.noDeadlineDiscountAmount)}\n`;
-      }
-
-      tzText += `\n>>> GRAND TOTAL BUDGET: ${formatPrice(orderCalculations.finalPriceRub)}\n`;
-      tzText += `>>> PREPAYMENT REQUIRED (${orderCalculations.prepayPercent}%): ${formatPrice(orderCalculations.prepayAmountRub)}\n`;
-      tzText += `--------------------------------------------------\n\n`;
-
-      tzText += `--------------------------------------------------\n`;
-      tzText += `2. DETAILED ITEM LIST & PRICE CALCULATIONS\n`;
-      tzText += `--------------------------------------------------\n`;
-
-      orderCalculations.rawItems.forEach(item => {
-        tzText += `Item #${item.index}: Category is "${item.categoryName}"\n`;
-        tzText += `  - Sizing & Resolution: ${item.sizeInfo}\n`;
-        tzText += `  - Animation: ${item.frames} frames (${item.animModeLogText})\n`;
-        tzText += `  - Quality details tier: ${item.quality === 'best' ? 'Best (+50%)' : item.quality === 'medium' ? 'Medium (+25%)' : 'Optimal (Base)'}\n`;
-        tzText += `  - Originals count: ${item.countOrig} pcs.\n`;
-        tzText += `  - Variations count: ${item.countVar} pcs.\n`;
-        tzText += `  - Brief / Task description: ${item.description || 'No description provided'}\n`;
-        
-        tzText += `  - Final position price in ticket: ${formatPrice(item.itemFinalPrice)}\n\n`;
-      });
-
-      tzText += `--------------------------------------------------\n`;
-      tzText += `3. ORDER RECOVERY SEED\n`;
-      tzText += `--------------------------------------------------\n`;
-      tzText += `${generatedSeed}\n\n`;
-
-      tzText += `--------------------------------------------------\n`;
-      tzText += `4. COLLABORATION TERMS & NOTICE\n`;
-      tzText += `--------------------------------------------------\n`;
-      tzText += `${t.tzUrlNote}\n`;
-      tzText += `==================================================\n`;
+    tzText += isRu ? `=== ТЕХНИЧЕСКОЕ ЗАДАНИЕ (ПАСПОРТ ЗАКАЗА) ===\n\n` : `=== TECHNICAL SPECIFICATION (ORDER PASSPORT) ===\n\n`;
+    tzText += isRu ? `Исполнитель: Village_ (errorsbills@gmail.com)\n` : `Artist: Village_ (errorsbills@gmail.com)\n`;
+    tzText += isRu ? `Дата: ${dateStr}\n` : `Date: ${dateStr}\n`;
+    tzText += isRu ? `Режим сроков: ${noDeadline ? 'Без дедлайна (-25%)' : 'Стандартный'}\n` : `Deadline Mode: ${noDeadline ? 'No Deadline (-25%)' : 'Standard'}\n`;
+    tzText += isRu 
+      ? `Загруженность: ${speedRate === 1.35 ? 'Высокая (+35%)' : speedRate === 1.20 ? 'Средняя (+20%)' : 'Стандартная'}\n\n`
+      : `Queue Load: ${speedRate === 1.35 ? 'High (+35%)' : speedRate === 1.20 ? 'Medium (+20%)' : 'Standard'}\n\n`;
+    
+    tzText += isRu ? `[ ИТОГОВЫЙ БЮДЖЕТ И ПРЕДОПЛАТА ]\n` : `[ FINAL BUDGET & PREPAYMENT ]\n`;
+    tzText += isRu ? `• Итоговая стоимость: ${formatPrice(orderCalculations.finalPriceRub)}\n` : `• Total Cost: ${formatPrice(orderCalculations.finalPriceRub)}\n`;
+    tzText += isRu ? `• Предоплата (${orderCalculations.prepayPercent}%): ${formatPrice(orderCalculations.prepayAmountRub)}\n` : `• Prepayment Amount (${orderCalculations.prepayPercent}%): ${formatPrice(orderCalculations.prepayAmountRub)}\n`;
+    tzText += isRu ? `• Всего позиций в заказе: ${orderCalculations.totalSpritesCount} шт.\n` : `• Total Items in Order: ${orderCalculations.totalSpritesCount} pcs.\n`;
+    if (orderCalculations.bulkDiscountAmount > 0) {
+      tzText += isRu ? `• Оптовая скидка: -${formatPrice(orderCalculations.bulkDiscountAmount)}\n` : `• Volume Discount: -${formatPrice(orderCalculations.bulkDiscountAmount)}\n`;
     }
+    tzText += `\n`;
 
+    tzText += isRu ? `[ СОСТАВ ЗАКАЗА И ПАРАМЕТРЫ ]\n\n` : `[ ORDER CONTENTS & SPECIFICATIONS ]\n\n`;
+
+    orderCalculations.rawItems.forEach(item => {
+      const designModeLabel = item.designMode === 'scratch'
+        ? (isRu ? 'С нуля (+50% к сложности)' : 'From Scratch (+50% multiplier)')
+        : (isRu ? 'По готовому референсу' : 'From Reference');
+      
+      const projectionLabel = item.isometry
+        ? (isRu ? 'Изометрическая проекция (+50% к сложности)' : 'Isometric Projection (+50% multiplier)')
+        : (isRu ? 'Стандартный 2D вид' : 'Standard 2D View');
+
+      const detailLabel = item.detailLevel === 'detailed' 
+        ? (isRu ? 'Высокая (Detailed)' : 'High (Detailed)')
+        : item.detailLevel === 'moderate' 
+        ? (isRu ? 'Средняя (Moderate)' : 'Medium (Moderate)')
+        : (isRu ? 'Оптимальная (Optimal)' : 'Optimal');
+
+      tzText += isRu ? `[№${item.index}] Категория: ${item.categoryName}\n` : `[#${item.index}] Category: ${item.categoryName}\n`;
+      tzText += `  • ${isRu ? 'ТЗ / Описание' : 'Task Description'}: ${item.description}\n`;
+      tzText += `  • ${isRu ? 'Разрешение' : 'Resolution'}: ${item.sizeInfo}\n`;
+      tzText += `  • ${isRu ? 'Разработка' : 'Design Mode'}: ${designModeLabel}\n`;
+      tzText += `  • ${isRu ? 'Проекция' : 'Projection'}: ${projectionLabel}\n`;
+      tzText += `  • ${isRu ? 'Детализация' : 'Detail Level'}: ${detailLabel}\n`;
+      tzText += `  • ${isRu ? 'Сложность' : 'Complexity'}: ${item.complexityCategory} (${item.totalComplexity} pts, ×${item.totalComplexityMultiplier})\n`;
+      tzText += `  • ${isRu ? 'Анимация' : 'Animation'}: ${item.hasAnimation ? `${item.frames} ${isRu ? 'кадр(ов)' : 'frame(s)'} (${item.animComplexity})` : (isRu ? 'Статичный спрайт' : 'Static sprite')}\n`;
+      tzText += `  • ${isRu ? 'Количество' : 'Quantity'}: ${item.countOrig} ${isRu ? 'ориг.' : 'orig.'}${item.countVar > 0 ? `, ${item.countVar} ${isRu ? 'вар.' : 'vars'}` : ''}\n`;
+      tzText += `  • ${isRu ? 'Стоимость позиции' : 'Item Cost'}: ${formatPrice(item.itemFinalPrice)}\n\n`;
+    });
+
+    tzText += isRu ? `[ КОД СИДА ДЛЯ ВОССТАНОВЛЕНИЯ РАСЧЁТА ]\n` : `[ RECOVERY SEED CODE ]\n`;
+    tzText += `${generatedSeed}\n\n`;
     setTzOutput(tzText);
     
     if (autoScroll) {
@@ -2268,10 +2409,21 @@ export default function App() {
           return true;
         }
       });
+      
+      // Append seed to the image code
+      const response = await fetch(dataUrl);
+      const imageBlob = await response.blob();
+      const seedText = `\n\n=== VILLAGE PIXEL ART CALCULATOR SEED ===\n${generatedSeed}\n=========================================\n`;
+      const textBlob = new Blob([seedText], { type: 'text/plain' });
+      const combinedBlob = new Blob([imageBlob, textBlob], { type: 'image/png' });
+      const combinedUrl = URL.createObjectURL(combinedBlob);
+      
       const link = document.createElement('a');
       link.download = `TZ_PixelArt_Order_${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = dataUrl;
+      link.href = combinedUrl;
       link.click();
+      URL.revokeObjectURL(combinedUrl);
+      
       triggerToast(lang === 'ru' ? 'Изображение успешно сохранено!' : 'Image saved successfully!', 'success');
     } catch (error) {
       console.error('Image export failed:', error);
@@ -2279,17 +2431,61 @@ export default function App() {
     }
   };
 
-  // Export Visual TZ as PDF (using the print stylesheet)
-  const exportAsPDF = () => {
+  // Export Visual TZ as PDF using jsPDF
+  const exportAsPDF = async () => {
     const el = document.getElementById('visual-tz-document');
     if (!el) {
       triggerToast(lang === 'ru' ? 'Сначала сформируйте визуальное ТЗ!' : 'Please generate the Visual TZ first!', 'error');
       return;
     }
-    triggerToast(lang === 'ru' ? 'Подготовка PDF-печати...' : 'Preparing PDF print...', 'info');
-    setTimeout(() => {
-      window.print();
-    }, 300);
+    try {
+      triggerToast(lang === 'ru' ? 'Генерация PDF документа...' : 'Generating PDF document...', 'info');
+      const dataUrl = await htmlToImage.toPng(el, {
+        cacheBust: true,
+        backgroundColor: '#150624',
+        style: {
+          transform: 'scale(1)',
+          borderRadius: '16px'
+        },
+        filter: (node) => {
+          if (node && (node as HTMLElement).classList && (node as HTMLElement).classList.contains('no-export')) {
+            return false;
+          }
+          return true;
+        }
+      });
+
+      const { jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+      let heightLeft = pdfHeight;
+      let position = 0;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft >= 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`TZ_PixelArt_Order_${new Date().toISOString().slice(0, 10)}.pdf`);
+      triggerToast(lang === 'ru' ? 'PDF успешно сохранен!' : 'PDF saved successfully!', 'success');
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      triggerToast(lang === 'ru' ? 'Ошибка экспорта PDF!' : 'Failed to export PDF!', 'error');
+    }
   };
 
   // Recalculate whenever inputs change
@@ -2451,13 +2647,13 @@ export default function App() {
                     className="w-full flex justify-center pt-2 overflow-hidden"
                   >
                     <a
-                      href="https://linktr.ee/Village_LSC"
+                      href="https://village-lsc.github.io/socials/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white font-mono text-xs sm:text-sm font-bold uppercase tracking-wider rounded-xl border-2 border-[#180a24] shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer"
                     >
                       <Globe className="w-4 h-4 text-white animate-spin-slow" />
-                      <span>{lang === 'ru' ? 'Мой сайт' : 'My Website'}: linktr.ee/Village_LSC</span>
+                      <span>{lang === 'ru' ? 'Мой сайт' : 'My Website'}: village-lsc.github.io/socials</span>
                     </a>
                   </motion.div>
                 )}
@@ -2541,16 +2737,10 @@ export default function App() {
               >
                 {/* Square work example + pricing beneath column */}
                 <SquareFrame
+                  cat={cat}
                   imagePath={image}
-                  catId={cat.id}
                   lang={lang}
-                  basePrice={cat.basePrice}
-                  pixelPrice={cat.pixelPrice}
-                  maxBaseSize={cat.maxBaseSize}
                   formatPrice={formatPrice}
-                  exampleSize={example.size}
-                  examplePrice={formatPrice(cat.basePrice + (cat.id === '7' ? 0 : 16 * cat.pixelPrice))}
-                  isMinecraft={cat.id === '7'}
                 />
 
                 {/* Plain Textbox that wraps snugly under the size of its text content */}
@@ -2569,7 +2759,7 @@ export default function App() {
 
                   {/* Shaded/Highlighted Note */}
                   {note && (
-                    <div className="mt-2 text-xs sm:text-sm text-purple-200 leading-relaxed border-l-2 border-purple-400 pl-2 italic transition-all duration-300 group-hover:text-white font-bold">
+                    <div className="mt-2 text-sm sm:text-base text-purple-200 leading-relaxed border-l-2 border-purple-400 pl-2 italic transition-all duration-300 group-hover:text-white font-bold">
                       {note}
                     </div>
                   )}
@@ -2600,7 +2790,7 @@ export default function App() {
               <h4 className="text-sm sm:text-base font-bold text-purple-300 uppercase tracking-wider">
                 {lang === 'ru' ? 'Сроки выполнения заказа (Важная информация)' : 'Order Execution Deadlines (Important Info)'}
               </h4>
-              <p className="text-xs sm:text-sm text-[#ebd6f7]/90 font-semibold leading-relaxed">
+              <p className="text-sm sm:text-base text-[#ebd6f7]/90 font-semibold leading-relaxed">
                 {lang === 'ru' ? (
                   <>
                     Сроки работы определяются <strong>строго индивидуально</strong> для каждого проекта. Указывать свои собственные желаемые сроки выполнения в ТЗ <strong>нельзя</strong>. Обратите внимание: <strong>минимальный срок выполнения любого заказа составляет 14 дней</strong>.
@@ -2667,7 +2857,7 @@ export default function App() {
               <div className="bg-[#12051d] p-4 rounded-2xl border-2 border-[#3d1a56] shadow-inner relative">
                 <h4 className="text-xs font-mono font-bold text-purple-300 uppercase tracking-widest mb-1.5 flex items-center justify-between">
                   <span>{t.termsCredits}</span>
-                  <span className="text-[10px] font-mono text-purple-400 font-bold bg-[#1d0c2c] px-1.5 py-0.5 rounded border border-[#3d1a56]/80">
+                  <span className="text-xs font-mono text-purple-300 font-bold bg-[#1d0c2c] px-2 py-0.5 rounded border border-[#3d1a56]/80">
                     {lang === 'ru' ? 'Буфер обмена' : 'Clipboard'}
                   </span>
                 </h4>
@@ -2721,17 +2911,8 @@ export default function App() {
               </p>
             </div>
 
-            {/* Top Right Controls: Random button & Currency selector */}
+            {/* Top Right Controls: Currency selector */}
             <div className="flex flex-wrap items-center gap-3 relative z-10">
-              <button
-                type="button"
-                onClick={addRandomSprite}
-                className="bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white font-black text-sm uppercase px-4 py-2.5 rounded-xl border-2 border-[#140620] shadow-[0_2px_8px_rgba(192,132,252,0.2)] hover:shadow-[0_4px_16px_rgba(192,132,252,0.45)] hover:scale-[1.03] transition-all active:translate-y-0.5 cursor-pointer flex items-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-                <span>{lang === 'ru' ? 'План Сьюзи 🎲' : "Susie's Idea 🎲"}</span>
-              </button>
-
               <div className="bg-[#12051d] px-4 py-2 rounded-xl border-2 border-[#3d1a56] flex items-center gap-3 shadow-inner">
                 <span className="text-sm font-mono tracking-wider uppercase text-[#ebd6f7]/60">
                   {t.currencySelect}
@@ -2760,26 +2941,53 @@ export default function App() {
 
           {/* List of Sprite Blocks */}
           <div className="space-y-6">
-            {/* Collapsed Assets Grid (flowing left to right like a table of small buttons) */}
+            {/* Collapsed Assets Grid (Clean responsive card layout) */}
             <AnimatePresence>
               {collapsedSprites.length > 0 && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="bg-[#190729] border-2 border-[#3d1a56]/60 rounded-2xl p-4 sm:p-5 relative overflow-hidden"
+                  className="bg-[#190729] border-2 border-[#3d1a56] rounded-2xl p-4 sm:p-5 relative overflow-hidden shadow-xl"
                 >
                   <div className="absolute inset-0.5 border border-[#ebd6f7]/5 rounded-xl pointer-events-none"></div>
-                  <div className="text-xs font-bold text-purple-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    <Layers className="w-3.5 h-3.5 text-purple-300 animate-pulse" />
-                    <span>{lang === 'ru' ? 'Свернутые позиции (кликните для раскрытия):' : 'Collapsed items (click to expand):'}</span>
+                  
+                  {/* Header Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4 pb-3 border-b border-[#3d1a56]/80">
+                    <div className="text-xs font-bold text-purple-300 uppercase tracking-wider flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-purple-300 animate-pulse" />
+                      <span>{lang === 'ru' ? 'Свернутые позиции' : 'Collapsed items'}</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-purple-900/60 border border-purple-500/30 text-white font-mono text-xs">
+                        {collapsedSprites.length}
+                      </span>
+                    </div>
+
+                    {/* Expand All / Collapse All controls */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Expand all collapsed sprites
+                          setExpandedSprites(prev => {
+                            const next = { ...prev };
+                            collapsedSprites.forEach(s => { next[s.id] = true; });
+                            return next;
+                          });
+                        }}
+                        className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-xl bg-purple-900/40 hover:bg-purple-800/60 text-purple-200 border border-purple-500/30 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5 rotate-180" />
+                        <span>{lang === 'ru' ? 'Раскрыть все' : 'Expand all'}</span>
+                      </button>
+                    </div>
                   </div>
                   
-                  {/* Fixed-size responsive grid with 5 columns on desktop, wrapping to multiple rows downwards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {/* Responsive grid for collapsed items */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {collapsedSprites.map((sprite) => {
                       const idx = sprites.findIndex(s => s.id === sprite.id);
                       const activeCat = CATEGORIES_LIST.find(c => c.id === sprite.categoryId) || CATEGORIES_LIST[0];
+                      const calc = calculateSpritePrice(sprite);
                       
                       let IconComponent = Plus;
                       if (activeCat.id === '1') IconComponent = Sword;
@@ -2795,40 +3003,149 @@ export default function App() {
                         <motion.div
                           key={sprite.id}
                           layout
-                          initial={{ scale: 0.9, opacity: 0 }}
+                          initial={{ scale: 0.95, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0.9, opacity: 0 }}
-                          className="bg-[#2d143f] hover:bg-purple-900/40 border border-[#3d1a56] hover:border-purple-400/80 rounded-xl overflow-hidden shadow-md transition-all flex items-center justify-between"
+                          exit={{ scale: 0.95, opacity: 0 }}
+                          className="bg-[#261036] hover:bg-[#2e1342] border border-[#3d1a56] hover:border-purple-400/80 rounded-xl p-3 shadow-md transition-all flex flex-col justify-between gap-3 group"
                         >
-                          <button
-                            type="button"
-                            onClick={() => setExpandedSprites(prev => ({ ...prev, [sprite.id]: true }))}
-                            className="flex items-center gap-3 px-3 py-3 text-xs sm:text-sm font-bold text-[#ebd6f7] hover:text-white transition-all cursor-pointer text-left min-w-0 flex-1 group"
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-[#190729] flex items-center justify-center border border-[#3d1a56] group-hover:border-purple-400/40 shrink-0">
-                              <IconComponent className="w-4 h-4 text-purple-300" />
+                          <div className="flex items-start justify-between gap-2.5">
+                            <div 
+                              onClick={() => setExpandedSprites(prev => ({ ...prev, [sprite.id]: true }))}
+                              className="flex items-start gap-2.5 flex-1 cursor-pointer min-w-0"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-[#190729] flex items-center justify-center border border-[#3d1a56] group-hover:border-purple-400/40 shrink-0 mt-0.5">
+                                <IconComponent className="w-4 h-4 text-purple-300" />
+                              </div>
+                              
+                              <div className="min-w-0 flex-1" onClick={(e) => {
+                                if (renamingSpriteId === sprite.id) {
+                                  e.stopPropagation();
+                                }
+                              }}>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="font-mono text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded text-xs uppercase font-black border border-purple-500/30">
+                                    #{idx + 1}
+                                  </span>
+                                  <span className="text-xs uppercase font-mono text-purple-300/70 truncate">
+                                    {lang === 'ru' ? activeCat.nameRu : activeCat.nameEn}
+                                  </span>
+                                </div>
+
+                                {renamingSpriteId === sprite.id ? (
+                                  <input 
+                                    type="text" 
+                                    autoFocus
+                                    value={sprite.description}
+                                    onChange={(e) => updateSpriteField(sprite.id, 'description', e.target.value)}
+                                    onBlur={() => setRenamingSpriteId(null)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') setRenamingSpriteId(null); }}
+                                    className="w-full bg-[#12051d] border border-purple-500/50 text-white text-xs px-2 py-1 rounded focus:outline-none"
+                                    placeholder={lang === 'ru' ? 'Введите название...' : 'Enter name...'}
+                                  />
+                                ) : (
+                                  <span className="text-xs text-white font-bold block leading-snug line-clamp-2">
+                                    {sprite.description ? sprite.description : (lang === 'ru' ? activeCat.nameRu : activeCat.nameEn)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="min-w-0 flex-1 leading-tight">
-                              <span className="font-mono text-purple-400 block text-[10px] uppercase font-bold mb-0.5">#{idx + 1}</span>
-                              <span className="text-xs text-[#ebd6f7] font-bold block leading-snug break-words hyphens-auto">
-                                {lang === 'ru' ? activeCat.nameRu : activeCat.nameEn}
+
+                            {/* Price Pill */}
+                            <div className="text-right shrink-0 font-mono">
+                              <span className="text-xs font-black text-fuchsia-300 block">
+                                {formatPrice(calc.totalPrice)}
+                              </span>
+                              <span className="text-xs text-[#ebd6f7]/60 block">
+                                {sprite.categoryId === '7' ? sprite.skinType === '2' ? '128x128' : '64x64' : `${sprite.width}x${sprite.height}`}
                               </span>
                             </div>
-                          </button>
-                          
-                          {sprites.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeSpriteBlock(sprite.id);
-                              }}
-                              className="px-3.5 text-red-400 hover:text-red-300 hover:bg-red-950/40 border-l border-[#3d1a56]/80 transition-all cursor-pointer self-stretch flex items-center justify-center shrink-0 active:scale-90"
-                              title={lang === 'ru' ? 'Удалить' : 'Delete'}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
+                          </div>
+
+                          {/* Action Toolbar Footer */}
+                          <div className="flex items-center justify-between border-t border-[#3d1a56]/80 pt-2 font-mono text-xs text-[#ebd6f7]/80">
+                            <div className="flex items-center gap-1 overflow-hidden">
+                              <span className="truncate text-xs">
+                                {sprite.countOrig} {lang === 'ru' ? 'ор.' : 'orig'} {sprite.countVar > 0 && `+ ${sprite.countVar} вар.`}
+                              </span>
+                              {sprite.designMode === 'scratch' && (
+                                <span className="px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-500/30 text-xs uppercase font-bold shrink-0">
+                                  0
+                                </span>
+                              )}
+                              {sprite.isometry && (
+                                <span className="px-1.5 py-0.5 rounded bg-fuchsia-950/80 text-fuchsia-300 border border-fuchsia-500/30 text-xs uppercase font-bold shrink-0">
+                                  3D
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => moveSpriteUp(sprite.id)}
+                                disabled={idx === 0}
+                                className="p-1 text-stone-400 hover:text-white hover:bg-purple-900/50 rounded transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                title={lang === 'ru' ? 'Вверх' : 'Move Up'}
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveSpriteDown(sprite.id)}
+                                disabled={idx === sprites.length - 1}
+                                className="p-1 text-stone-400 hover:text-white hover:bg-purple-900/50 rounded transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                title={lang === 'ru' ? 'Вниз' : 'Move Down'}
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRenamingSpriteId(sprite.id)}
+                                className="p-1 text-stone-400 hover:text-white hover:bg-purple-900/50 rounded transition-all cursor-pointer"
+                                title={lang === 'ru' ? 'Переименовать' : 'Rename'}
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => duplicateSpriteBlock(sprite.id)}
+                                className="p-1 text-purple-300 hover:text-white hover:bg-purple-900/50 rounded transition-all cursor-pointer"
+                                title={lang === 'ru' ? 'Дублировать' : 'Duplicate'}
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                              
+                              {/* Always prominent delete button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (sprites.length <= 1) {
+                                    triggerToast(
+                                      lang === 'ru' 
+                                        ? 'Нельзя удалить последнюю позицию!' 
+                                        : 'Cannot delete the last item!',
+                                      'error'
+                                    );
+                                    return;
+                                  }
+                                  removeSpriteBlock(sprite.id);
+                                }}
+                                className="p-1 text-rose-400 hover:text-rose-200 hover:bg-rose-950/60 rounded transition-all cursor-pointer"
+                                title={lang === 'ru' ? 'Удалить' : 'Delete'}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setExpandedSprites(prev => ({ ...prev, [sprite.id]: true }))}
+                                className="p-1 text-purple-400 hover:text-white hover:bg-purple-900/50 rounded transition-all cursor-pointer ml-1"
+                                title={lang === 'ru' ? 'Раскрыть' : 'Expand'}
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </motion.div>
                       );
                     })}
@@ -2893,7 +3210,7 @@ export default function App() {
                             <span className="opacity-40">•</span>
                             <span>
                               {sprite.hasAnimation 
-                                ? (lang === 'ru' ? `Аним. (${sprite.frames} к.)` : `Anim (${sprite.frames} fr.)`) 
+                                ? (lang === 'ru' ? `Аним. (${calculated.frames} к.)` : `Anim (${calculated.frames} fr.)`) 
                                 : (lang === 'ru' ? 'Статичный' : 'Static')}
                             </span>
                             <span className="opacity-40">•</span>
@@ -2953,10 +3270,10 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => toggleHelpState(blockKey)}
-                              className="text-sm font-bold text-purple-300 hover:text-purple-200 flex items-center gap-1 bg-[#12051d] hover:bg-[#1c082c] px-2.5 py-1 rounded-lg border border-[#ebd6f7]/15 cursor-pointer transition-all active:scale-95"
+                              className="text-xs sm:text-sm font-bold text-purple-200 hover:text-white flex items-center gap-1.5 bg-[#1f0933] hover:bg-[#331152] px-3.5 py-1.5 rounded-xl border-2 border-purple-400/40 hover:border-purple-300 cursor-pointer transition-all active:scale-95 shadow-sm"
                             >
-                              <Info className="w-3 h-3" />
-                              <span>Formula ?</span>
+                              <Info className="w-4 h-4 text-purple-300 stroke-[2.5]" />
+                              <span>{lang === 'ru' ? 'Формула расчета ?' : 'Formula ?'}</span>
                             </button>
                           </label>
 
@@ -3054,6 +3371,32 @@ export default function App() {
                                   ))}
                                 </ul>
                               </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-[#1a0729] p-2.5 rounded-lg border border-purple-500/20 text-xs">
+                                <div>
+                                  <div className="text-purple-300/80 font-bold uppercase tracking-wider text-xs">
+                                    {lang === 'ru' ? 'Начальная ставка:' : 'Starting rate:'}
+                                  </div>
+                                  <div className="font-mono font-bold text-purple-200 mt-0.5">
+                                    {formatPrice(activeCat.basePrice)}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-purple-300/80 font-bold uppercase tracking-wider text-xs">
+                                    {lang === 'ru' ? 'Предпочт. размер:' : 'Preferred size:'}
+                                  </div>
+                                  <div className="font-mono font-bold text-stone-200 mt-0.5">
+                                    {lang === 'ru' ? activeCat.preferredSizeRu : activeCat.preferredSizeEn}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-purple-300/80 font-bold uppercase tracking-wider text-xs">
+                                    {lang === 'ru' ? 'Примерная цена:' : 'Approx. price:'}
+                                  </div>
+                                  <div className="font-mono font-bold text-emerald-400 mt-0.5">
+                                    ~{formatPrice(activeCat.popularPriceNum)} <span className="text-xs text-purple-300 font-normal">({lang === 'ru' ? activeCat.popularResRu : activeCat.popularResEn})</span>
+                                  </div>
+                                </div>
+                              </div>
                               <div className="text-xs bg-black/20 p-2.5 rounded leading-relaxed border border-[#ebd6f7]/15 text-stone-200 font-mono">
                                 <strong>{t.howCalculatedTitle}</strong><br />
                                 {lang === 'ru' ? activeCat.formulaHelpRu : activeCat.formulaHelpEn}
@@ -3137,8 +3480,8 @@ export default function App() {
                                     onClick={() => applyPresetSize(sprite.id, p.value)}
                                     className={`px-1 py-2 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer text-center w-full ${
                                       isSelected
-                                        ? 'bg-purple-500 text-white border border-purple-300 shadow-sm'
-                                        : 'bg-[#12051d] text-[#ebd6f7]/80 border border-[#3d1a56] hover:bg-[#1a0729] hover:text-white'
+                                        ? 'bg-purple-500 text-white border-purple-300 shadow-sm'
+                                        : 'bg-[#12051d] text-[#ebd6f7]/80 border-[#3d1a56] hover:bg-[#1a0729] hover:text-white'
                                     }`}
                                   >
                                     {p.label === 'Custom' ? (lang === 'ru' ? 'Свой' : 'Custom') : `${p.label}²`}
@@ -3151,7 +3494,7 @@ export default function App() {
                             <div className="grid grid-cols-2 gap-3 mt-2.5">
                               <div>
                                 <span className="block text-xs uppercase font-bold text-[#ebd6f7]/80 mb-1 font-mono">Width</span>
-                                <div className={`flex items-center bg-[#12051d] border-2 rounded-xl overflow-hidden focus-within:border-purple-300 transition-colors h-10 ${sprite.width > 2000 ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-[#3d1a56]'}`}>
+                                <div className={`flex items-center bg-[#12051d] border-2 rounded-xl overflow-hidden focus-within:border-purple-300 transition-colors h-10 ${sprite.width > 1000 ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-[#3d1a56]'}`}>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -3190,7 +3533,7 @@ export default function App() {
                                     +
                                   </button>
                                 </div>
-                                {sprite.width > 2000 && (
+                                {sprite.width > 1000 && (
                                   <span className="text-xs font-bold text-red-400 mt-1 block leading-tight">
                                     {lang === 'ru' ? 'недопустимое значение' : 'invalid value'}
                                   </span>
@@ -3199,7 +3542,7 @@ export default function App() {
 
                               <div>
                                 <span className="block text-xs uppercase font-bold text-[#ebd6f7]/80 mb-1 font-mono">Height</span>
-                                <div className={`flex items-center bg-[#12051d] border-2 rounded-xl overflow-hidden focus-within:border-purple-300 transition-colors h-10 ${sprite.height > 2000 ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-[#3d1a56]'}`}>
+                                <div className={`flex items-center bg-[#12051d] border-2 rounded-xl overflow-hidden focus-within:border-purple-300 transition-colors h-10 ${sprite.height > 1000 ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-[#3d1a56]'}`}>
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -3238,13 +3581,25 @@ export default function App() {
                                     +
                                   </button>
                                 </div>
-                                {sprite.height > 2000 && (
+                                {sprite.height > 1000 && (
                                   <span className="text-xs font-bold text-red-400 mt-1 block leading-tight">
                                     {lang === 'ru' ? 'недопустимое значение' : 'invalid value'}
                                   </span>
                                 )}
                               </div>
                             </div>
+
+                            {sprite.categoryId !== '7' && calculated.sizeFactor > activeCat.maxBaseSize && (
+                              <div className="mt-2 text-xs text-amber-400 font-bold leading-relaxed border border-amber-500/20 bg-amber-500/5 px-3 py-2 rounded-lg flex items-center gap-2">
+                                <Info className="w-4 h-4 shrink-0 text-amber-400" />
+                                <span>
+                                  {lang === 'ru' 
+                                    ? `Превышен рекомендуемый лимит (${activeCat.maxBaseSize}px) для данной категории. Взимается дополнительная плата за повышенный размер.` 
+                                    : `Exceeded the recommended limit (${activeCat.maxBaseSize}px) for this category. An additional size surcharge is charged.`
+                                  }
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                         
@@ -3339,88 +3694,193 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Order Quality select */}
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="text-sm font-bold uppercase tracking-wider text-[#ebd6f7]/90 flex items-center gap-2">
-                              <span>{lang === 'ru' ? 'Качество заказа:' : 'Order Quality:'}</span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => setShowQualityHelp(!showQualityHelp)}
-                              className="w-5 h-5 rounded-full bg-[#12051d] hover:bg-[#3d1a56] border border-purple-400/30 text-purple-300 hover:text-white flex items-center justify-center text-xs font-mono font-black cursor-pointer transition-all active:scale-90"
-                              title={lang === 'ru' ? 'Информация о качестве' : 'Quality Information'}
-                            >
-                              ?
-                            </button>
-                          </div>
+                        {/* Design & Isometry Complexity Options (Moved to Column 3 for optimal balanced visual layout) */}
+                        {sprite.categoryId !== '7' && (
+                          <div className="pt-1 space-y-3">
+                            <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
+                              {/* Design Creation Card */}
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => updateSpriteField(sprite.id, 'designMode', sprite.designMode === 'scratch' ? 'reference' : 'scratch')}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    updateSpriteField(sprite.id, 'designMode', sprite.designMode === 'scratch' ? 'reference' : 'scratch');
+                                  }
+                                }}
+                                className="bg-[#12051d]/40 backdrop-blur-md border border-[#3d1956] rounded-2xl p-2.5 sm:p-4 transition-all duration-300 hover:border-purple-500/50 hover:bg-[#180727]/50 relative overflow-hidden flex flex-col justify-between min-h-[96px] sm:min-h-[110px] cursor-pointer active:scale-[0.99] select-none text-left"
+                              >
+                                <div className="flex items-start justify-between gap-1.5 sm:gap-2">
+                                  <div className="space-y-0.5 sm:space-y-1 min-w-0">
+                                    <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+                                      <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-purple-300">
+                                        {lang === 'ru' ? 'Дизайн' : 'Design'}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDesignHelp(prev => ({ ...prev, [sprite.id]: !prev[sprite.id] }));
+                                        }}
+                                        className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-[#270d3c] hover:bg-purple-800/80 border-2 border-purple-400/50 hover:border-purple-300 text-purple-200 hover:text-white flex items-center justify-center text-xs sm:text-sm font-black transition-all hover:scale-110 active:scale-95 cursor-pointer select-none shrink-0 shadow-md"
+                                        title={lang === 'ru' ? 'Справка' : 'Help'}
+                                      >
+                                        i
+                                      </button>
+                                    </div>
+                                  </div>
 
-                          <div className="relative">
+                                  {/* Custom Switch Toggle */}
+                                  <div
+                                    className={`relative w-11 h-6 sm:w-14 sm:h-8 rounded-full transition-all duration-300 shrink-0 ${
+                                      sprite.designMode === 'scratch'
+                                        ? 'bg-purple-600 shadow-[0_0_14px_rgba(147,51,234,0.5)]'
+                                        : 'bg-[#0f0418] border border-purple-500/15'
+                                    }`}
+                                  >
+                                    <div
+                                      className={`absolute top-1 left-1 w-4 h-4 sm:w-6 sm:h-6 rounded-full bg-white transition-transform duration-300 shadow-md ${
+                                        sprite.designMode === 'scratch' 
+                                          ? 'translate-x-5 sm:translate-x-6' 
+                                          : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="mt-2 sm:mt-3.5 pt-1.5 sm:pt-2.5 border-t border-purple-500/5 flex items-center justify-between text-xs sm:text-sm font-mono">
+                                  <span className="text-[#ebd6f7]/40 uppercase tracking-wider font-bold truncate max-w-[70px] sm:max-w-none">
+                                    {sprite.designMode === 'scratch' ? (lang === 'ru' ? 'С нуля' : 'From Scratch') : (lang === 'ru' ? 'Референс' : 'Reference')}
+                                  </span>
+                                  <span className={`font-black shrink-0 ${sprite.designMode === 'scratch' ? 'text-purple-400' : 'text-stone-500'}`}>
+                                    {sprite.designMode === 'scratch' ? '+50%' : '0%'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Isometric View Card */}
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => updateSpriteField(sprite.id, 'isometry', !sprite.isometry)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    updateSpriteField(sprite.id, 'isometry', !sprite.isometry);
+                                  }
+                                }}
+                                className="bg-[#12051d]/40 backdrop-blur-md border border-[#3d1956] rounded-2xl p-2.5 sm:p-4 transition-all duration-300 hover:border-purple-500/50 hover:bg-[#180727]/50 relative overflow-hidden flex flex-col justify-between min-h-[96px] sm:min-h-[110px] cursor-pointer active:scale-[0.99] select-none text-left"
+                              >
+                                <div className="flex items-start justify-between gap-1.5 sm:gap-2">
+                                  <div className="space-y-0.5 sm:space-y-1 min-w-0">
+                                    <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+                                      <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-purple-300">
+                                        {lang === 'ru' ? 'Изометрия' : 'Isometry'}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setIsometryHelp(prev => ({ ...prev, [sprite.id]: !prev[sprite.id] }));
+                                        }}
+                                        className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-[#270d3c] hover:bg-purple-800/80 border-2 border-purple-400/50 hover:border-purple-300 text-purple-200 hover:text-white flex items-center justify-center text-xs sm:text-sm font-black transition-all hover:scale-110 active:scale-95 cursor-pointer select-none shrink-0 shadow-md"
+                                        title={lang === 'ru' ? 'Справка' : 'Help'}
+                                      >
+                                        i
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Custom Switch Toggle */}
+                                  <div
+                                    className={`relative w-11 h-6 sm:w-14 sm:h-8 rounded-full transition-all duration-300 shrink-0 ${
+                                      sprite.isometry
+                                        ? 'bg-purple-600 shadow-[0_0_14px_rgba(147,51,234,0.5)]'
+                                        : 'bg-[#0f0418] border border-purple-500/15'
+                                    }`}
+                                  >
+                                    <div
+                                      className={`absolute top-1 left-1 w-4 h-4 sm:w-6 sm:h-6 rounded-full bg-white transition-transform duration-300 shadow-md ${
+                                        sprite.isometry 
+                                          ? 'translate-x-5 sm:translate-x-6' 
+                                          : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="mt-2 sm:mt-3.5 pt-1.5 sm:pt-2.5 border-t border-purple-500/5 flex items-center justify-between text-xs sm:text-sm font-mono">
+                                  <span className="text-[#ebd6f7]/40 uppercase tracking-wider font-bold truncate max-w-[70px] sm:max-w-none">
+                                    {sprite.isometry ? (lang === 'ru' ? 'Изо: Да' : 'Iso: Yes') : (lang === 'ru' ? 'Изо: Нет' : 'Iso: No')}
+                                  </span>
+                                  <span className={`font-black shrink-0 ${sprite.isometry ? 'text-purple-400' : 'text-stone-500'}`}>
+                                    {sprite.isometry ? '+50%' : '0%'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Design creation help popover */}
+                            <AnimatePresence>
+                              {designHelp[sprite.id] && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="mt-2 bg-[#12051d]/90 rounded-xl p-3 border border-purple-500/20 text-xs sm:text-sm space-y-2 overflow-hidden text-[#ebd6f7]/90 leading-relaxed shadow-lg text-left"
+                                >
+                                  <div>
+                                    <strong className="text-purple-300">{lang === 'ru' ? 'По референсу:' : 'From Reference:'}</strong> {lang === 'ru' ? 'Художник работает по вашему готовому эскизу, скриншоту или подробному референсу.' : 'The artist works based on your ready concept art, sketch, or visual references.'}
+                                  </div>
+                                  <div>
+                                    <strong className="text-indigo-400">{lang === 'ru' ? 'С нуля (+50% сложности):' : 'From Scratch (+50% complexity):'}</strong> {lang === 'ru' ? 'Разработка концепта и дизайна художником полностью с нуля по вашему текстовому описанию.' : 'Concept and visual design created entirely from scratch based on your text ideas.'}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {/* Isometry help popover */}
+                            <AnimatePresence>
+                              {isometryHelp[sprite.id] && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="mt-2 bg-[#12051d]/90 rounded-xl p-3 border border-purple-500/20 text-xs sm:text-sm overflow-hidden text-[#ebd6f7]/90 leading-relaxed shadow-lg text-left"
+                                >
+                                  {lang === 'ru' 
+                                    ? 'Активируйте для построения 2.5D проекции (диагональный вид). Дает +50% к сложности из-за необходимости точной стыковки пикселей под углом 26.565° и сложного трехмерного затенения сторон.' 
+                                    : 'Activate for 2.5D projection (diagonal perspective). Adds +50% complexity due to precise pixel alignment at 26.565° and complex 3D-like shading of multiple sides.'}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        )}
+
+                        {/* Sprite Complexity Options */}
+                        {sprite.categoryId === '7' && (
+                          // Minecraft-skins: standard skin model selection
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="text-sm font-bold uppercase tracking-wider text-[#ebd6f7]/90">
+                                {t.skinTypeLabel}
+                              </label>
+                            </div>
                             <select
-                              value={sprite.quality || 'optimal'}
-                              onChange={(e) => updateSpriteField(sprite.id, 'quality', e.target.value as 'optimal' | 'medium' | 'best')}
-                              className="w-full bg-[#12051d] text-[#ebd6f7]/95 border-2 border-[#3d1a56] hover:border-purple-500/50 rounded-xl px-4 py-3 text-sm sm:text-base font-extrabold focus:outline-none focus:border-purple-400 transition-all cursor-pointer appearance-none [background-image:url('data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23c084fc%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] [background-repeat:no-repeat] [background-position:right_16px_center] [background-size:18px_18px] pr-10"
+                              value={sprite.skinType || '1'}
+                              onChange={(e) => updateSpriteField(sprite.id, 'skinType', e.target.value as '1' | '2')}
+                              className="w-full bg-[#12051d] text-[#ebd6f7]/95 border-2 border-[#3d1a56] hover:border-purple-500/50 rounded-xl px-4 py-3 text-sm font-extrabold focus:outline-none focus:border-purple-400 transition-all cursor-pointer"
                             >
-                              <option value="optimal" className="bg-[#1c0827] text-purple-200">
-                                {lang === 'ru' ? 'Оптимальное (+0%)' : 'Optimal (+0%)'}
+                              <option value="1" className="bg-[#1c0827]">
+                                {t.standardSkin}
                               </option>
-                              <option value="medium" className="bg-[#1c0827] text-purple-200">
-                                {lang === 'ru' ? 'Среднее (+25%)' : 'Medium (+25%)'}
-                              </option>
-                              <option value="best" className="bg-[#1c0827] text-purple-200">
-                                {lang === 'ru' ? 'Лучшее (+50%)' : 'Best (+50%)'}
+                              <option value="2" className="bg-[#1c0827]">
+                                {t.hdSkin}
                               </option>
                             </select>
                           </div>
-
-                          {/* Quality Help Panel */}
-                          <AnimatePresence>
-                            {showQualityHelp && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="mt-3 bg-[#12051d] rounded-xl p-4 border border-[#ebd6f7]/15 text-xs text-[#ebd6f7]/85 space-y-2.5 overflow-hidden font-sans font-medium"
-                              >
-                                <div className="font-bold text-purple-300 text-xs uppercase tracking-wider">
-                                  {lang === 'ru' ? 'Информация о качестве заказа' : 'Order Quality Information'}
-                                </div>
-                                <div className="space-y-2 leading-relaxed text-stone-300">
-                                  <p>
-                                    {lang === 'ru'
-                                      ? 'Разные уровни детализации влияют на время прорисовки и ручную полировку пикселей:'
-                                      : 'Different detail levels affect direct drawing time and manual pixel polishing:'}
-                                  </p>
-                                  <ul className="list-disc pl-4 space-y-1">
-                                    <li>
-                                      <strong>{lang === 'ru' ? 'Оптимальное (+0%):' : 'Optimal (+0%):'}</strong>{' '}
-                                      {lang === 'ru'
-                                        ? 'Обычное качество с стандартным набором детализации и проработки.'
-                                        : 'Regular quality with a standard level of detail and execution.'}
-                                    </li>
-                                    <li>
-                                      <strong>{lang === 'ru' ? 'Среднее (+25%):' : 'Medium (+25%):'}</strong>{' '}
-                                      {lang === 'ru'
-                                        ? 'Повышенная детализация, более проработанные тени, улучшенные концепты и более оригинальные спрайты.'
-                                        : 'Enhanced detail, more refined shading, improved concepts, and more original sprites.'}
-                                    </li>
-                                    <li>
-                                      <strong>{lang === 'ru' ? 'Лучшее (+50%):' : 'Best (+50%):'}</strong>{' '}
-                                      {lang === 'ru'
-                                        ? 'Тщательная проработка спрайтов, проработанный концепт арт и продуманная детализация.'
-                                        : 'Meticulous sprite execution, elaborate concept art, and thoughtful detailing.'}
-                                    </li>
-                                  </ul>
-                                  <p className="text-xs text-stone-300 border-t border-white/10 pt-2">
-                                    {lang === 'ru'
-                                      ? 'Зачем это сделано? Разная сложность арта требует разного количества времени художника на ручную полировку, чистку «шума» и подбор палитр.'
-                                      : 'Why was this introduced? Different levels of art complexity require varying amounts of the artist\'s time for manual cleanup, sub-pixel placement, and palette polishing.'}
-                                  </p>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
+                        )}
                       </div>
                     </div>
 
@@ -3453,130 +3913,170 @@ export default function App() {
                               exit={{ opacity: 0, height: 0 }}
                               className="overflow-hidden"
                             >
-                              <div className="bg-[#12051d] rounded-xl p-4 border-2 border-[#3d1a56] grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div>
-                                  <span className="block text-[#ebd6f7] mb-1 font-semibold text-sm">{t.animCalcMethod}</span>
-                                  <select
-                                    value={sprite.frameMode}
-                                    onChange={(e) => updateSpriteField(sprite.id, 'frameMode', e.target.value)}
-                                    className="w-full bg-[#1a0729] border border-[#3d1a56] rounded-lg px-2.5 py-1.5 text-sm text-[#ebd6f7] font-bold focus:outline-none focus:border-purple-300 cursor-pointer"
-                                  >
-                                    <option value="direct">{t.animMethodDirect}</option>
-                                    <option value="calc">{t.animMethodCalc}</option>
-                                  </select>
-                                </div>
+                              <div className="bg-[#12051d] rounded-xl p-4 border-2 border-[#3d1a56] space-y-4 text-sm">
+                                {/* Beautiful Animated Custom Component for Animation Complexity */}
+                                <AnimationComplexitySelection
+                                  value={sprite.animComplexity || 'simple'}
+                                  onChange={(val) => updateSpriteField(sprite.id, 'animComplexity', val)}
+                                  lang={lang}
+                                  spriteId={sprite.id}
+                                />
 
-                                {sprite.frameMode === 'direct' ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-[#3d1a56]/50">
                                   <div>
-                                    <span className="block text-[#ebd6f7] mb-1 font-semibold text-sm">{t.animFramesCount}</span>
-                                    <div className="flex items-center bg-[#1a0729] border border-[#3d1a56] rounded-lg overflow-hidden h-8">
-                                      <button
-                                        type="button"
-                                        onClick={() => updateSpriteField(sprite.id, 'framesDirect', Math.max(1, sprite.framesDirect - 1))}
-                                        className="px-2 text-purple-300 hover:text-white hover:bg-white/5 transition-all font-bold font-mono text-sm active:scale-90 select-none cursor-pointer"
-                                      >
-                                        -
-                                      </button>
-                                      <input
-                                        type="number"
-                                        value={sprite.framesDirect === 0 ? '' : sprite.framesDirect}
-                                        onChange={(e) => {
-                                          const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
-                                          updateSpriteField(sprite.id, 'framesDirect', val);
-                                        }}
-                                        onBlur={() => {
-                                          if (sprite.framesDirect < 1) {
-                                            updateSpriteField(sprite.id, 'framesDirect', 1);
-                                          }
-                                        }}
-                                        className="w-full bg-transparent text-center text-sm text-purple-300 font-bold font-mono focus:outline-none border-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => updateSpriteField(sprite.id, 'framesDirect', sprite.framesDirect + 1)}
-                                        className="px-2 text-purple-300 hover:text-white hover:bg-white/5 transition-all font-bold font-mono text-sm active:scale-90 select-none cursor-pointer"
-                                      >
-                                        +
-                                      </button>
-                                    </div>
+                                    <span className="block text-[#ebd6f7] mb-1 font-semibold text-sm">{t.animCalcMethod}</span>
+                                    <select
+                                      value={sprite.frameMode}
+                                      onChange={(e) => updateSpriteField(sprite.id, 'frameMode', e.target.value)}
+                                      className="w-full bg-[#1a0729] border border-[#3d1a56] rounded-lg px-2.5 py-1.5 text-sm text-[#ebd6f7] font-bold focus:outline-none focus:border-purple-300 cursor-pointer"
+                                    >
+                                      <option value="direct">{t.animMethodDirect}</option>
+                                      <option value="calc">{t.animMethodCalc}</option>
+                                    </select>
                                   </div>
-                                ) : (
-                                  <>
+
+                                  {sprite.frameMode === 'direct' ? (
                                     <div>
-                                      <span className="block text-[#ebd6f7] mb-1 font-semibold text-sm">{t.animDurationLabel}</span>
+                                      <span className="block text-[#ebd6f7] mb-1 font-semibold text-sm">{t.animFramesCount}</span>
                                       <div className="flex items-center bg-[#1a0729] border border-[#3d1a56] rounded-lg overflow-hidden h-8">
                                         <button
                                           type="button"
-                                          onClick={() => updateSpriteField(sprite.id, 'animDuration', Math.max(0.1, Math.round((sprite.animDuration - 0.1) * 10) / 10))}
+                                          onClick={() => updateSpriteField(sprite.id, 'framesDirect', Math.max(1, sprite.framesDirect - 1))}
                                           className="px-2 text-purple-300 hover:text-white hover:bg-white/5 transition-all font-bold font-mono text-sm active:scale-90 select-none cursor-pointer"
                                         >
                                           -
                                         </button>
                                         <input
                                           type="number"
-                                          value={sprite.animDuration === 0 ? '' : sprite.animDuration}
-                                          step={0.1}
+                                          value={sprite.framesDirect === 0 ? '' : sprite.framesDirect}
                                           onChange={(e) => {
-                                            const val = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
-                                            updateSpriteField(sprite.id, 'animDuration', val);
+                                            const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                                            updateSpriteField(sprite.id, 'framesDirect', val);
                                           }}
                                           onBlur={() => {
-                                            if (sprite.animDuration < 0.1) {
-                                              updateSpriteField(sprite.id, 'animDuration', 0.1);
+                                            if (sprite.framesDirect < 1) {
+                                              updateSpriteField(sprite.id, 'framesDirect', 1);
                                             }
                                           }}
                                           className="w-full bg-transparent text-center text-sm text-purple-300 font-bold font-mono focus:outline-none border-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                         />
                                         <button
                                           type="button"
-                                          onClick={() => updateSpriteField(sprite.id, 'animDuration', Math.round((sprite.animDuration + 0.1) * 10) / 10)}
+                                          onClick={() => updateSpriteField(sprite.id, 'framesDirect', sprite.framesDirect + 1)}
                                           className="px-2 text-purple-300 hover:text-white hover:bg-white/5 transition-all font-bold font-mono text-sm active:scale-90 select-none cursor-pointer"
                                         >
                                           +
                                         </button>
                                       </div>
                                     </div>
-                                    <div>
-                                      <span className="block text-[#ebd6f7] mb-1 font-semibold text-sm">{t.animDelayLabel}</span>
-                                      <div className="flex items-center bg-[#1a0729] border border-[#3d1a56] rounded-lg overflow-hidden h-8">
-                                        <button
-                                          type="button"
-                                          onClick={() => updateSpriteField(sprite.id, 'animDelay', Math.max(0.01, Math.round((sprite.animDelay - 0.05) * 100) / 100))}
-                                          className="px-2 text-purple-300 hover:text-white hover:bg-white/5 transition-all font-bold font-mono text-sm active:scale-90 select-none cursor-pointer"
-                                        >
-                                          -
-                                        </button>
-                                        <input
-                                          type="number"
-                                          value={sprite.animDelay === 0 ? '' : sprite.animDelay}
-                                          step={0.01}
-                                          onChange={(e) => {
-                                            const val = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
-                                            updateSpriteField(sprite.id, 'animDelay', val);
-                                          }}
-                                          onBlur={() => {
-                                            if (sprite.animDelay < 0.01) {
-                                              updateSpriteField(sprite.id, 'animDelay', 0.01);
-                                            }
-                                          }}
-                                          className="w-full bg-transparent text-center text-sm text-purple-300 font-bold font-mono focus:outline-none border-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => updateSpriteField(sprite.id, 'animDelay', Math.round((sprite.animDelay + 0.05) * 100) / 100)}
-                                          className="px-2 text-purple-300 hover:text-white hover:bg-white/5 transition-all font-bold font-mono text-sm active:scale-90 select-none cursor-pointer"
-                                        >
-                                          +
-                                        </button>
+                                  ) : (
+                                    <>
+                                      <div>
+                                        <span className="block text-[#ebd6f7] mb-1 font-semibold text-sm">{t.animDurationLabel}</span>
+                                        <div className="flex items-center bg-[#1a0729] border border-[#3d1a56] rounded-lg overflow-hidden h-8">
+                                          <button
+                                            type="button"
+                                            onClick={() => updateSpriteField(sprite.id, 'animDuration', Math.max(0.1, Math.round((sprite.animDuration - 0.1) * 10) / 10))}
+                                            className="px-2 text-purple-300 hover:text-white hover:bg-white/5 transition-all font-bold font-mono text-sm active:scale-90 select-none cursor-pointer"
+                                          >
+                                            -
+                                          </button>
+                                          <input
+                                            type="number"
+                                            value={sprite.animDuration === 0 ? '' : sprite.animDuration}
+                                            step={0.1}
+                                            onChange={(e) => {
+                                              const val = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+                                              updateSpriteField(sprite.id, 'animDuration', val);
+                                            }}
+                                            onBlur={() => {
+                                              if (sprite.animDuration < 0.1) {
+                                                updateSpriteField(sprite.id, 'animDuration', 0.1);
+                                              }
+                                            }}
+                                            className="w-full bg-transparent text-center text-sm text-purple-300 font-bold font-mono focus:outline-none border-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => updateSpriteField(sprite.id, 'animDuration', Math.round((sprite.animDuration + 0.1) * 10) / 10)}
+                                            className="px-2 text-purple-300 hover:text-white hover:bg-white/5 transition-all font-bold font-mono text-sm active:scale-90 select-none cursor-pointer"
+                                          >
+                                            +
+                                          </button>
+                                        </div>
                                       </div>
-                                    </div>
-                                  </>
-                                )}
+                                      <div>
+                                        <span className="block text-[#ebd6f7] mb-1 font-semibold text-sm">{t.animDelayLabel}</span>
+                                        <div className="flex items-center bg-[#1a0729] border border-[#3d1a56] rounded-lg overflow-hidden h-8">
+                                          <button
+                                            type="button"
+                                            onClick={() => updateSpriteField(sprite.id, 'animDelay', Math.max(0.01, Math.round((sprite.animDelay - 0.05) * 100) / 100))}
+                                            className="px-2 text-purple-300 hover:text-white hover:bg-white/5 transition-all font-bold font-mono text-sm active:scale-90 select-none cursor-pointer"
+                                          >
+                                            -
+                                          </button>
+                                          <input
+                                            type="number"
+                                            value={sprite.animDelay === 0 ? '' : sprite.animDelay}
+                                            step={0.01}
+                                            onChange={(e) => {
+                                              const val = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+                                              updateSpriteField(sprite.id, 'animDelay', val);
+                                            }}
+                                            onBlur={() => {
+                                              if (sprite.animDelay < 0.01) {
+                                                updateSpriteField(sprite.id, 'animDelay', 0.01);
+                                              }
+                                            }}
+                                            className="w-full bg-transparent text-center text-sm text-purple-300 font-bold font-mono focus:outline-none border-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => updateSpriteField(sprite.id, 'animDelay', Math.round((sprite.animDelay + 0.05) * 100) / 100)}
+                                            className="px-2 text-purple-300 hover:text-white hover:bg-white/5 transition-all font-bold font-mono text-sm active:scale-90 select-none cursor-pointer"
+                                          >
+                                            +
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              <div className="text-xs text-[#ebd6f7]/60 leading-relaxed border-t border-[#3d1a56]/60 pt-2.5 font-medium flex items-start gap-1.5">
+                                <Info className="w-4 h-4 shrink-0 text-purple-400 mt-0.5" />
+                                <span>
+                                  {lang === 'ru' 
+                                    ? 'Сложность анимации определяет характер покадровых изменений. Простая: перемещение или поворот готового объекта. Средняя: циклическая деформация, бег, атака или взмах крыльев. Сложная: полноценное покадровое рисование динамических эффектов (взрывы, магия, потоки воды, искры) полностью вручную.' 
+                                    : 'Animation complexity defines the nature of frame-by-frame changes. Simple: motion or rotation of an existing asset. Medium: cyclic deformation, running cycles, attacks, or wing flaps. Complex: full hand-drawn frame-by-frame dynamic special effects (explosions, magic spells, fluid streams, sparks) entirely from scratch.'}
+                                </span>
                               </div>
+                            </div>
                             </motion.div>
                           )}
                         </AnimatePresence>
                       </div>
+                    )}
+
+                    {/* Complexity selection moved before description and styled to fit the site style */}
+                    {sprite.categoryId !== '7' && (
+                      <div className="mt-5 pt-4 border-t border-[#ebd6f7]/10">
+                        <ComplexitySelection
+                          value={sprite.detailLevel || 'simple'}
+                          onChange={(val) => updateSpriteField(sprite.id, 'detailLevel', val)}
+                          lang={lang}
+                          spriteId={sprite.id}
+                          categoryId={sprite.categoryId}
+                        />
+                      </div>
+                    )}
+
+                    {/* Sprite Complexity Progress Bar (Positioned BEFORE description) */}
+                    {sprite.categoryId !== '7' && (
+                      <TotalComplexityCard
+                        calculated={calculated}
+                        sprite={sprite}
+                        lang={lang}
+                      />
                     )}
 
                     {/* Task Description input (Mandatory) */}
@@ -3680,7 +4180,7 @@ export default function App() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded border ${
+                    <span className={`text-xs font-black uppercase px-2.5 py-1 rounded border ${
                       !noDeadline && speedRate === 1.25 
                         ? 'bg-[#12051d] text-purple-300 border-purple-400/40' 
                         : 'bg-purple-950 text-purple-300/40 border-purple-400/10'
@@ -3688,11 +4188,11 @@ export default function App() {
                       +25%
                     </span>
                     {!noDeadline && speedRate === 1.25 ? (
-                      <span className="text-[10px] font-black uppercase bg-[#12051d] text-green-400 px-2.5 py-1 rounded border-2 border-green-400/80 animate-pulse">
+                      <span className="text-xs font-black uppercase bg-[#12051d] text-green-400 px-2.5 py-1 rounded border-2 border-green-400/80 animate-pulse">
                         {lang === 'ru' ? 'АКТИВЕН' : 'ACTIVE'}
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold uppercase bg-purple-950/60 text-purple-400/60 px-2 py-1 rounded border border-purple-500/10">
+                      <span className="text-xs font-bold uppercase bg-purple-950/60 text-purple-400/60 px-2 py-1 rounded border border-purple-500/10">
                         {lang === 'ru' ? 'ВЫКЛ' : 'OFF'}
                       </span>
                     )}
@@ -3735,16 +4235,16 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-2">
                     {CURRENT_LOAD_STATUS !== 2 && (
-                      <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded border ${
+                      <span className={`text-xs font-black uppercase px-2.5 py-1 rounded border ${
                         noDeadline 
                           ? 'bg-[#12051d] text-emerald-300 border-emerald-400/40' 
                           : 'bg-emerald-950/20 text-emerald-300/60 border-emerald-500/10'
                       }`}>
-                        -15%
+                        -25%
                       </span>
                     )}
                     {noDeadline ? (
-                      <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded border-2 animate-pulse ${
+                      <span className={`text-xs font-black uppercase px-2.5 py-1 rounded border-2 animate-pulse ${
                         CURRENT_LOAD_STATUS === 2
                           ? 'bg-[#12051d] text-rose-400 border-rose-500/40'
                           : 'bg-[#12051d] text-emerald-400 border-emerald-400/80'
@@ -3752,7 +4252,7 @@ export default function App() {
                         {lang === 'ru' ? 'АКТИВЕН' : 'ACTIVE'}
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold uppercase bg-purple-950/60 text-purple-400 px-2 py-1 rounded border border-purple-500/20">
+                      <span className="text-xs font-bold uppercase bg-purple-950/60 text-purple-400 px-2 py-1 rounded border border-purple-500/20">
                         {lang === 'ru' ? 'ВЫКЛ' : 'OFF'}
                       </span>
                     )}
@@ -3775,807 +4275,15 @@ export default function App() {
               </div>
             </div>
 
-            {/* Reveal math logs button placed cleanly at the bottom */}
-            <div className="mt-6 pt-5 border-t border-[#ebd6f7]/10 flex justify-center sm:justify-end relative z-10">
-              <button
-                type="button"
-                onClick={() => setShowLog(!showLog)}
-                className="w-full sm:w-auto bg-[#c084fc]/10 hover:bg-[#c084fc]/20 text-[#c084fc] hover:text-[#d8b4fe] text-base font-sans border-2 border-[#c084fc]/30 hover:border-[#c084fc]/60 px-8 py-3.5 rounded-2xl transition-all cursor-pointer font-black uppercase tracking-wider active:scale-95 shadow-[0_4px_20px_rgba(192,132,252,0.15)] flex items-center justify-center gap-2"
-              >
-                <span>{t.calculationLogBtn}</span>
-                <span className="text-xs transition-transform duration-300">{showLog ? '▲' : '▼'}</span>
-              </button>
+                        <div className="mt-10 mb-8 border-t border-[#ebd6f7]/10 pt-10 relative z-10">
+              <CalculationLog 
+                lang={lang} 
+                orderCalculations={orderCalculations} 
+                CATEGORIES_LIST={CATEGORIES_LIST} 
+                formatPrice={formatPrice} 
+              />
             </div>
-
-            {/* Price Calculations output breakdown logs */}
-            <AnimatePresence>
-              {showLog && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-6 border-t border-[#ebd6f7]/10 pt-5 text-sm font-mono space-y-4 overflow-hidden"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-[#3d1a56]/40 pb-3">
-                    <div className="text-purple-300 font-display font-bold uppercase text-xs tracking-wider flex items-center gap-1.5">
-                      <Settings className="w-4 h-4 animate-spin-slow" />
-                      {t.calculationLogHeader}
-                    </div>
-                    <div className="flex bg-[#12051d] border border-[#3d1a56] rounded-xl p-0.5 text-xs font-sans self-start sm:self-auto shadow-inner">
-                      <button
-                        type="button"
-                        onClick={() => setActiveLogTab('stepByStep')}
-                        className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                          activeLogTab === 'stepByStep'
-                            ? 'bg-[#3d1a56] text-white shadow-md'
-                            : 'text-purple-300/60 hover:text-purple-300'
-                        }`}
-                      >
-                        {lang === 'ru' ? 'По шагам' : 'Step-by-Step'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveLogTab('items')}
-                        className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-                          activeLogTab === 'items'
-                            ? 'bg-[#3d1a56] text-white shadow-md'
-                            : 'text-purple-300/60 hover:text-purple-300'
-                        }`}
-                      >
-                        {lang === 'ru' ? 'По позициям' : 'By Items'}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#1c082d]/80 rounded-2xl p-5 border border-[#3d1a56] text-[#ebd6f7]/90 max-h-[480px] overflow-y-auto leading-relaxed space-y-4 shadow-2xl backdrop-blur-md">
-                    {/* Active Queue parameters info banner */}
-                    <div className="p-3.5 bg-[#12051d] rounded-xl border border-[#3d1a56] text-purple-300 font-sans text-sm space-y-1.5 shadow-inner">
-                      <div className="uppercase tracking-wider text-xs text-[#ebd6f7]/55 font-bold font-mono flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-                        {lang === 'ru' ? 'ТЕКУЩИЕ ПАРАМЕТРЫ ОЧЕРЕДИ:' : 'CURRENT QUEUE PARAMETERS:'}
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[#ebd6f7]/80 text-sm font-semibold">
-                        <div>
-                          • {lang === 'ru' ? 'Статус загруженности:' : 'Queue workload status:'}{' '}
-                          <span className={CURRENT_LOAD_STATUS === 2 ? 'text-rose-400 font-bold' : CURRENT_LOAD_STATUS === 1 ? 'text-yellow-400 font-bold' : 'text-emerald-400 font-bold'}>
-                            {CURRENT_LOAD_STATUS === 0 ? t.loadStatusFree : CURRENT_LOAD_STATUS === 1 ? t.loadStatusMedium : t.loadStatusFull}
-                          </span>
-                        </div>
-                        <div>
-                          • {lang === 'ru' ? 'Режим дедлайнов:' : 'Deadline policy:'}{' '}
-                          {noDeadline ? (
-                            <span className="text-emerald-400 font-bold">
-                              {lang === 'ru' ? 'Без дедлайна' : 'No Deadline'}
-                              {CURRENT_LOAD_STATUS === 2 && <span className="text-rose-400"> ({lang === 'ru' ? 'скидка 15% отключена' : '15% discount disabled'})</span>}
-                            </span>
-                          ) : (
-                            <span className="text-purple-300/60 font-medium">{lang === 'ru' ? 'Стандартный' : 'Standard'}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {activeLogTab === 'stepByStep' ? (
-                      <div className="space-y-8 pt-2 font-sans text-base sm:text-lg">
-                        {/* Interactive Steps list */}
-                        {(() => {
-                          const totalCount = orderCalculations.totalSpritesCount;
-                          const countNoDiscount = Math.min(10, totalCount);
-                          const count25Discount = Math.min(40, Math.max(0, totalCount - 10));
-                          const count50Discount = Math.max(0, totalCount - 50);
-
-                          const baseItemsSummary = sprites.map((s, i) => {
-                            const cat = CATEGORIES_LIST.find(c => c.id === s.categoryId) || CATEGORIES_LIST[0];
-                            const res = calculateSpritePrice(s);
-                            const baseRateVal = cat.basePrice;
-                            const pixelVal = cat.pixelPrice;
-                            const isMinecraft = s.categoryId === '7';
-                            
-                            return (
-                              <div key={i} className="text-base sm:text-lg text-[#ebd6f7]/95 bg-[#170924] p-5 rounded-2xl border-2 border-[#3d1a56]/80 mt-4 font-mono space-y-3.5 shadow-lg">
-                                <div className="flex flex-wrap justify-between items-center gap-2 border-b border-[#3d1a56] pb-2.5">
-                                  <span className="font-extrabold text-purple-200 text-lg sm:text-xl">
-                                    {i + 1}. {lang === 'ru' ? cat.nameRu : cat.nameEn} ({res.sizeInfo})
-                                  </span>
-                                  <span className="text-[#34d399] font-black text-lg sm:text-xl bg-emerald-950/40 px-3.5 py-1 rounded-xl border border-emerald-500/30">
-                                    {formatPrice(res.totalPrice)}
-                                  </span>
-                                </div>
-                                
-                                <div className="space-y-2 font-sans font-bold text-sm sm:text-base">
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-purple-300">• {lang === 'ru' ? 'Начальная ставка:' : 'Starting rate:'}</span>
-                                    <span className="text-[#ebd6f7]">{formatPrice(baseRateVal)}</span>
-                                  </div>
-                                  {!isMinecraft && (
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-purple-300">• {lang === 'ru' ? 'Цена за пиксель:' : 'Price per pixel:'}</span>
-                                      <span className="text-[#ebd6f7]">{formatPrice(pixelVal)}/px</span>
-                                    </div>
-                                  )}
-                                  
-                                  <div className="bg-[#12051d] p-3.5 rounded-xl border border-[#3d1a56] mt-3 font-mono text-sm sm:text-base space-y-2">
-                                    <div className="text-stone-400 text-xs uppercase tracking-wider font-extrabold">{lang === 'ru' ? 'Формула расчёта:' : 'Calculation Formula:'}</div>
-                                    <div className="font-extrabold text-[#ebd6f7]">
-                                      {!isMinecraft ? (
-                                        <span>
-                                          {baseRateVal} ₽ + ({pixelVal} ₽ × {res.sizeFactor}px) = {res.baseCalculatedPrice} ₽
-                                        </span>
-                                      ) : (
-                                        <span>
-                                          {baseRateVal} ₽ × {s.skinType === '2' ? '2 (HD)' : '1 (Standard)'} = {res.baseCalculatedPrice} ₽
-                                        </span>
-                                      )}
-                                    </div>
-                                    
-                                    {(res.frames > 1 || res.sizeSurplusModifier > 1.0 || res.qualitySurchargePercent > 0) && (
-                                      <div className="border-t border-[#3d1a56]/60 pt-2 text-[#ebd6f7]/90 space-y-1">
-                                        <div className="text-[#ebd6f7]/50 text-xs uppercase tracking-wider font-extrabold">{lang === 'ru' ? 'Учёт доп. опций (кадры, качество, штрафы):' : 'Additional options (frames, quality, limits):'}</div>
-                                        <div className="font-extrabold text-amber-300 text-sm sm:text-base">
-                                          {res.baseCalculatedPrice} ₽
-                                          {res.frames > 1 ? ` × [1 + 0.2 × (${res.frames} - 1)]` : ''}
-                                          {res.sizeSurplusModifier > 1.0 ? ` × ${res.sizeSurplusModifier.toFixed(3)}` : ''}
-                                          {res.qualitySurchargePercent > 0 ? ` × ${1 + res.qualitySurchargePercent / 100}` : ''}
-                                          {" = "}{res.animatedSinglePrice} ₽ {lang === 'ru' ? '(за оригинал)' : '(for original)'}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {(s.countOrig > 1 || s.countVar > 0) && (
-                                      <div className="border-t border-[#3d1a56]/60 pt-2 text-fuchsia-300 font-extrabold text-sm sm:text-base">
-                                        ({res.animatedSinglePrice} ₽ × {s.countOrig} orig) + ({res.singleVarPrice} ₽ × {s.countVar} var) = {res.totalPrice} ₽
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          });
-
-                          const surchargePercent = CURRENT_LOAD_STATUS === 1 ? 20 : CURRENT_LOAD_STATUS === 2 ? 35 : 0;
-                          const surchargeWithoutDiscount = Math.round(orderCalculations.priceBeforeDiscount * (surchargePercent / 100));
-                          const actualSurcharge = orderCalculations.loadMarkupAmount;
-                          const savingAmount = surchargeWithoutDiscount - actualSurcharge;
-
-                          const allSteps = [
-                            {
-                              id: 1,
-                              icon: <Layers className="w-5 h-5 text-purple-400" />,
-                              titleRu: 'Сумма базовых стоимостей ассетов',
-                              titleEn: 'Sum of Base Asset Prices',
-                              formula: (() => {
-                                const prices = sprites.map(s => calculateSpritePrice(s).totalPrice);
-                                if (prices.length === 0) return '0 ₽';
-                                if (prices.length > 5) {
-                                  return `${prices.slice(0, 4).map(p => formatPrice(p)).join(' + ')} + ... + ${formatPrice(prices[prices.length - 1])} = ${formatPrice(orderCalculations.baseTotalRounded)}`;
-                                }
-                                return `${prices.map(p => formatPrice(p)).join(' + ')} = ${formatPrice(orderCalculations.baseTotalRounded)}`;
-                              })(),
-                              tipRu: "Суммирует стоимость каждой отдельной позиции. Базовая цена каждого спрайта зависит от его категории (например, Персонаж, Окружение, Снаряжение), разрешения в пикселях (или HD качества) и количества кадров анимации.",
-                              tipEn: "Sums the cost of each individual position. The base price of each sprite depends on its category (e.g. Character, Environment, Gear), pixel resolution (or HD quality), and the number of animation frames.",
-                              explanation: (
-                                <div className="space-y-2 text-sm leading-relaxed">
-                                  <p className="text-[#ebd6f7]/90 font-medium">
-                                    {lang === 'ru' 
-                                      ? 'Суммирует базовую стоимость всех спрайтов и вариаций с учетом их размеров, анимации и качества.' 
-                                      : 'Sums base prices of all sprites and variants considering dimensions, animation, and quality.'}
-                                  </p>
-                                  <div className="space-y-1.5 mt-3">
-                                    <div className="text-xs font-black text-[#ebd6f7]/50 uppercase tracking-wider">{lang === 'ru' ? 'Детализация позиций:' : 'Positions breakdown:'}</div>
-                                    {baseItemsSummary}
-                                  </div>
-                                </div>
-                              ),
-                              value: formatPrice(orderCalculations.baseTotalRounded),
-                              type: 'base',
-                              applied: true
-                            },
-                            {
-                              id: 2,
-                              icon: <Sparkles className="w-5 h-5 text-yellow-400" />,
-                              titleRu: 'Наценка за срочность очереди (Приоритет)',
-                              titleEn: 'Queue Speed Surcharge (Priority)',
-                              formula: `${formatPrice(orderCalculations.baseTotalRounded)} × ${orderCalculations.actualSpeedRate} = ${formatPrice(orderCalculations.priceBeforeDiscount)}`,
-                              tipRu: "Приоритетная разработка умножает сумму базовых стоимостей на коэффициент 1.25, что ускоряет время ожидания в очереди и выводит ваш заказ на первый план.",
-                              tipEn: "Priority development multiplies the sum of base costs by a factor of 1.25, which shortens queue wait times and brings your order to the forefront of our pipeline.",
-                              explanation: (
-                                <div className="space-y-2 text-sm leading-relaxed">
-                                  <p className="text-[#ebd6f7]/90 font-medium">
-                                    {lang === 'ru' 
-                                      ? 'Применен повышающий коэффициент +25% за приоритетную разработку.' 
-                                      : 'Surcharge of +25% rate is applied for priority execution.'}
-                                  </p>
-                                  <div className="text-sm sm:text-base font-mono font-bold bg-purple-950/25 border border-purple-500/20 p-3 rounded-xl text-[#ebd6f7]/90">
-                                    {formatPrice(orderCalculations.baseTotalRounded)} × {orderCalculations.actualSpeedRate} = {formatPrice(orderCalculations.priceBeforeDiscount)}
-                                  </div>
-                                </div>
-                              ),
-                              value: formatPrice(orderCalculations.priceBeforeDiscount),
-                              type: 'multiplier',
-                              applied: orderCalculations.actualSpeedRate !== 1.0
-                            },
-                            {
-                              id: 3,
-                              icon: <Coins className="w-5 h-5 text-emerald-400" />,
-                              titleRu: 'Накопительная оптовая скидка',
-                              titleEn: 'Cumulative Bulk Discount',
-                              formula: `${formatPrice(orderCalculations.priceBeforeDiscount)} - ${formatPrice(orderCalculations.bulkDiscountAmount)} = ${formatPrice(orderCalculations.priceBeforeDiscount - orderCalculations.bulkDiscountAmount)}`,
-                              tipRu: "Прогрессивная скидка для оптовых клиентов: первые 10 спрайтов рассчитываются по стандартному тарифу, с 11 по 50 позицию действует скидка -25%, а на каждую последующую позицию после 50-й применяется скидка -50%. Это позволяет значительно сэкономить на больших объемах!",
-                              tipEn: "Progressive discount for wholesale clients: the first 10 sprites are calculated at the standard rate, a -25% discount applies to items 11 through 50, and a -50% discount is granted on every subsequent asset after the 50th. This allows for massive savings on high-volume briefs!",
-                              explanation: (
-                                <div className="space-y-3 text-sm leading-relaxed">
-                                  <p className="text-[#ebd6f7]/90 font-medium">
-                                    {lang === 'ru'
-                                      ? 'Предоставляется скидка за объем заказа. Оптовая скидка рассчитывается прогрессивно для каждого последующего спрайта:'
-                                      : 'Bulk volume discount is applied. Discount rate escalates progressively for subsequent assets in your order list:'}
-                                  </p>
-                                  <div className="grid grid-cols-3 gap-2.5 text-xs font-mono text-center">
-                                    <div className="bg-[#12051d] p-2.5 rounded-xl border border-[#3d1a56]/40">
-                                      <div className="text-purple-400 font-bold">1–10 {lang === 'ru' ? 'ассетов' : 'assets'}</div>
-                                      <div className="text-[#ebd6f7]/60">0% {lang === 'ru' ? 'скидка' : 'discount'}</div>
-                                      <div className="text-purple-300 font-bold mt-1">({countNoDiscount} шт.)</div>
-                                    </div>
-                                    <div className={`p-2.5 rounded-xl border ${count25Discount > 0 ? 'bg-emerald-950/20 border-emerald-500/30 font-extrabold' : 'bg-[#12051d] border-[#3d1a56]/40 opacity-40'}`}>
-                                      <div className="text-emerald-400 font-bold">11–50 {lang === 'ru' ? 'ассетов' : 'assets'}</div>
-                                      <div className="text-emerald-400">25% {lang === 'ru' ? 'скидка' : 'discount'}</div>
-                                      <div className="text-emerald-300 font-bold mt-1">({count25Discount} шт.)</div>
-                                    </div>
-                                    <div className={`p-2.5 rounded-xl border ${count50Discount > 0 ? 'bg-emerald-950/20 border-emerald-500/30 font-extrabold' : 'bg-[#12051d] border-[#3d1a56]/40 opacity-40'}`}>
-                                      <div className="text-emerald-400 font-bold">51+ {lang === 'ru' ? 'ассетов' : 'assets'}</div>
-                                      <div className="text-emerald-400">50% {lang === 'ru' ? 'скидка' : 'discount'}</div>
-                                      <div className="text-emerald-300 font-bold mt-1">({count50Discount} шт.)</div>
-                                    </div>
-                                  </div>
-                                  <div className="text-sm sm:text-base text-emerald-400 font-mono bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-xl flex justify-between items-center font-bold">
-                                    <span>{lang === 'ru' ? 'Вычтено из стоимости:' : 'Deducted from price:'}</span>
-                                    <span className="text-lg font-black">-${formatPrice(orderCalculations.bulkDiscountAmount)}</span>
-                                  </div>
-                                </div>
-                              ),
-                              value: formatPrice(orderCalculations.priceBeforeDiscount - orderCalculations.bulkDiscountAmount),
-                              type: 'discount',
-                              applied: orderCalculations.bulkDiscountAmount > 0
-                            },
-                            {
-                              id: 4,
-                              icon: <Flame className="w-5 h-5 text-rose-400 animate-pulse" />,
-                              titleRu: 'Превышение лимита спецификации (>100)',
-                              titleEn: 'Over-limit Specification Surcharge',
-                              formula: `${formatPrice(orderCalculations.priceBeforeDiscount - orderCalculations.bulkDiscountAmount)} + ${formatPrice(orderCalculations.surchargeAmount)} = ${formatPrice(orderCalculations.subtotalPrice)}`,
-                              tipRu: "При превышении оптимального лимита в 100 спрайтов в рамках одной спецификации, к стоимости каждого избыточного спрайта применяется защитная наценка +1000% (+10x) для компенсации экстремальной сложности управления проектом.",
-                              tipEn: "If the optimal limit of 100 sprites within a single specification is exceeded, a protective surcharge of +1000% (+10x) is applied to the cost of each excess sprite to compensate for extreme project management overhead.",
-                              explanation: (
-                                <div className="space-y-2 text-sm leading-relaxed">
-                                  <p className="text-[#ebd6f7]/90 font-medium text-rose-300">
-                                    {lang === 'ru' 
-                                      ? `Применена защитная наценка +1000% за превышение лимита в 100 спрайтов: +${formatPrice(orderCalculations.surchargeAmount)}.` 
-                                      : `Technical surcharge of +1000% applied for exceeding 100-sprite limit: +${formatPrice(orderCalculations.surchargeAmount)}.`}
-                                  </p>
-                                </div>
-                              ),
-                              value: formatPrice(orderCalculations.subtotalPrice),
-                              type: 'surcharge',
-                              applied: orderCalculations.surchargeAmount > 0
-                            },
-                            {
-                              id: 5,
-                              icon: <Box className="w-5 h-5 text-amber-400" />,
-                              titleRu: 'Наценка за загруженность очереди',
-                              titleEn: 'Queue Workload Surcharge',
-                              formula: `${formatPrice(orderCalculations.subtotalPrice)} + ${formatPrice(orderCalculations.loadMarkupAmount)} = ${formatPrice(orderCalculations.subtotalPrice + orderCalculations.loadMarkupAmount)}`,
-                              tipRu: "Наценка за текущую занятость очереди (Свободно: +0%, Средняя: +20%, Высокая: +35%) накладывается на стоимость заказа. Важная особенность: наценка рассчитывается от суммы ПОСЛЕ вычета оптовой скидки, что сохраняет ваши средства!",
-                              tipEn: "Surcharge for current queue busy status (Free: +0%, Medium: +20%, Full: +35%) is applied. Important highlight: the surcharge is calculated on the price AFTER subtracting the bulk discount, which saves you extra cash!",
-                              explanation: (
-                                <div className="space-y-3 text-sm leading-relaxed">
-                                  <p className="text-[#ebd6f7]/90 font-medium">
-                                    {CURRENT_LOAD_STATUS === 1 
-                                      ? (lang === 'ru' ? `Очередь разработки умеренно загружена. Наценка составляет +20%: +${formatPrice(orderCalculations.loadMarkupAmount)}.` : `Moderate development queue workload. Surcharge of +20% applied: +${formatPrice(orderCalculations.loadMarkupAmount)}.`) 
-                                      : CURRENT_LOAD_STATUS === 2 
-                                      ? (lang === 'ru' ? `Очередь разработки полностью загружена. Наценка составляет +35%: +${formatPrice(orderCalculations.loadMarkupAmount)}.` : `Full development queue workload. Surcharge of +35% applied: +${formatPrice(orderCalculations.loadMarkupAmount)}.`) 
-                                      : (lang === 'ru' ? 'Очередь разработки свободна, наценка за загруженность не применяется.' : 'The development queue is free, no workload surcharge applied.')}
-                                  </p>
-
-                                  <div className="space-y-3 pt-1">
-                                    <div className="text-xs sm:text-sm font-mono bg-[#170924] border border-[#3d1a56]/40 p-3.5 rounded-xl space-y-1.5 text-[#ebd6f7]/85 font-semibold">
-                                      <div className="flex justify-between">
-                                        <span>• {lang === 'ru' ? 'Промежуточная цена (после скидки):' : 'Intermediate price (after discount):'}</span>
-                                        <span className="text-purple-300 font-bold">{formatPrice(orderCalculations.subtotalPrice)}</span>
-                                      </div>
-                                      <div className="flex justify-between">
-                                        <span>• {lang === 'ru' ? 'Наценка за загруженность' : 'Workload surcharge'} (+{surchargePercent}%):</span>
-                                        <span className="text-amber-400 font-bold">+{formatPrice(actualSurcharge)}</span>
-                                      </div>
-                                    </div>
-
-                                    {orderCalculations.bulkDiscountAmount > 0 && savingAmount > 0 && (
-                                      <div className="bg-emerald-950/25 border border-emerald-500/25 p-4 rounded-xl text-emerald-400 text-sm space-y-2 shadow-inner">
-                                        <div className="font-extrabold flex items-center gap-1.5 text-emerald-300 text-sm sm:text-base">
-                                          <Sparkles className="w-4 h-4 text-emerald-300 shrink-0" />
-                                          <span>{lang === 'ru' ? 'Экономия на наценке:' : 'Savings on Workload Surcharge:'}</span>
-                                        </div>
-                                        <p className="text-[#ebd6f7]/80 leading-relaxed text-xs sm:text-sm">
-                                          {lang === 'ru'
-                                            ? `Поскольку наценка рассчитывается от цены ПОСЛЕ вычета оптовой скидки, уменьшается и сама наценка. Это дает дополнительную экономию в размере ${surchargePercent}% от суммы скидки.`
-                                            : `Since the workload surcharge is calculated based on the price AFTER subtracting the bulk discount, the surcharge amount is also reduced, saving an additional ${surchargePercent}% of the discount value.`}
-                                        </p>
-                                        <div className="font-mono text-xs sm:text-sm text-[#ebd6f7]/50 pt-2 border-t border-emerald-500/10 space-y-1">
-                                          <div className="flex justify-between">
-                                            <span>{lang === 'ru' ? 'Наценка от базовой стоимости:' : 'Surcharge from base price:'}</span>
-                                            <span>{formatPrice(surchargeWithoutDiscount)} ({surchargePercent}% от {formatPrice(orderCalculations.priceBeforeDiscount)})</span>
-                                          </div>
-                                          <div className="flex justify-between">
-                                            <span>{lang === 'ru' ? 'Фактическая наценка с учетом скидки:' : 'Actual surcharge with discount applied:'}</span>
-                                            <span>{formatPrice(actualSurcharge)} ({surchargePercent}% от {formatPrice(orderCalculations.subtotalPrice)})</span>
-                                          </div>
-                                          <div className="flex justify-between text-emerald-300 font-extrabold border-t border-emerald-500/10 pt-1.5 mt-1.5 text-sm sm:text-base">
-                                            <span>{lang === 'ru' ? 'Итоговая экономия на наценке:' : 'Total savings on surcharge:'}</span>
-                                            <span className="text-base sm:text-lg font-black">{formatPrice(savingAmount)}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ),
-                              value: formatPrice(orderCalculations.subtotalPrice + orderCalculations.loadMarkupAmount),
-                              type: 'load',
-                              applied: orderCalculations.loadMarkupAmount > 0
-                            },
-                            {
-                              id: 6,
-                              icon: <Clock className="w-5 h-5 text-blue-400" />,
-                              titleRu: 'Скидка за режим «Без дедлайна»',
-                              titleEn: 'No-Deadline Discount Option',
-                              formula: `${formatPrice(orderCalculations.subtotalPrice + orderCalculations.loadMarkupAmount)} - ${formatPrice(orderCalculations.noDeadlineDiscountAmount)} = ${formatPrice(orderCalculations.finalPriceRub)}`,
-                              tipRu: "Опция «Без дедлайна» дает фиксированную скидку -15% в обмен на гибкость по срокам (заказ выполняется в свободное время в порядке фоновой очереди). Опция автоматически отключается при полной загрузке очереди.",
-                              tipEn: "The 'No Deadline' option grants a flat -15% discount in exchange for delivery timeframe flexibility (the order is designed as a background pipeline task in free intervals). It disables automatically under full queue workload.",
-                              explanation: (
-                                <div className="space-y-2 text-sm leading-relaxed">
-                                  <p className="text-[#ebd6f7]/90 font-medium">
-                                    {lang === 'ru' 
-                                      ? `Предоставляется скидка 15% за выбор режима без дедлайна: -${formatPrice(orderCalculations.noDeadlineDiscountAmount)}.` 
-                                      : `Wholesale discount of -15% granted for choosing long-term waiting options: -${formatPrice(orderCalculations.noDeadlineDiscountAmount)}.`}
-                                  </p>
-                                  <div className="text-sm sm:text-base font-mono bg-emerald-950/20 border border-emerald-500/20 p-3 rounded-xl text-emerald-400 font-black">
-                                    -15% {lang === 'ru' ? 'от' : 'of'} {formatPrice(orderCalculations.subtotalPrice + orderCalculations.loadMarkupAmount)} = -{formatPrice(orderCalculations.noDeadlineDiscountAmount)}
-                                  </div>
-                                </div>
-                              ),
-                              value: formatPrice(orderCalculations.finalPriceRub),
-                              type: 'noDeadline',
-                              applied: orderCalculations.noDeadlineDiscountAmount > 0
-                            },
-                            {
-                              id: 7,
-                              icon: <Check className="w-5 h-5 text-emerald-400" />,
-                              titleRu: 'Расчет необходимой предоплаты',
-                              titleEn: 'Prepayment Calculation',
-                              formula: `${formatPrice(orderCalculations.finalPriceRub)} × ${orderCalculations.prepayPercent}% = ${formatPrice(orderCalculations.prepayAmountRub)}`,
-                              tipRu: "Процент предоплаты рассчитывается по логарифмической шкале. Для мелких заказов он равен 50%, но по мере роста бюджета он плавно снижается с шагом -5% (при каждом удвоении стоимости от порога в 2000 ₽) вплоть до минимальных 10%. Это минимизирует финансовые барьеры для крупных клиентов!",
-                              tipEn: "The prepayment percentage is calculated using a logarithmic scale. For small orders it is set to 50%, but as the budget grows, it gradually declines in -5% steps (with every doubling of the budget starting from 2000 RUB threshold) down to a minimum of 10%. This minimizes cashflow barriers for larger briefs!",
-                              explanation: (
-                                <div className="space-y-3 text-sm leading-relaxed font-sans font-medium">
-                                  <p className="text-[#ebd6f7]/90 font-medium">
-                                    {lang === 'ru' 
-                                      ? `Предоплата составляет ${orderCalculations.prepayPercent}% от итоговой стоимости.` 
-                                      : `Prepayment amount is ${orderCalculations.prepayPercent}% of the final total value.`}
-                                  </p>
-                                  <div className="text-sm sm:text-base font-mono bg-[#170924] border border-[#3d1a56]/45 p-3 rounded-xl text-purple-300 font-black">
-                                    {formatPrice(orderCalculations.finalPriceRub)} × {orderCalculations.prepayPercent}% = <span className="font-black text-fuchsia-400 text-base sm:text-lg">{formatPrice(orderCalculations.prepayAmountRub)}</span>
-                                  </div>
-
-                                  {/* PREPAYMENT BRACKETS LOGIC */}
-                                  {(() => {
-                                    const isLargeSpecification = sprites.length > 100;
-                                    const brackets = [
-                                      { maxPrice: 2000, percent: 50, coefficient: '×0 (Base)', descRu: 'До 2 000 руб. (Базовый)', descEn: 'Up to 2,000 RUB (Base)' },
-                                      { maxPrice: 4000, percent: 45, coefficient: '×1', descRu: '2 000 – 4 000 руб.', descEn: '2,000 – 4,000 RUB' },
-                                      { maxPrice: 8000, percent: 40, coefficient: '×2', descRu: '4 000 – 8 000 руб.', descEn: '4,000 – 8,000 RUB' },
-                                      { maxPrice: 16000, percent: 35, coefficient: '×3', descRu: '8 000 – 16 000 руб.', descEn: '8,000 – 16,000 RUB' },
-                                      { maxPrice: 32000, percent: 30, coefficient: '×4', descRu: '16 000 – 32 000 руб.', descEn: '16,000 – 32,000 RUB' },
-                                      { maxPrice: 64000, percent: 25, coefficient: '×5', descRu: '32 000 – 64 000 руб.', descEn: '32,000 – 64,000 RUB' },
-                                      { maxPrice: 128000, percent: 20, coefficient: '×6', descRu: '64 000 – 128 000 руб.', descEn: '64,000 – 128,000 RUB' },
-                                      { maxPrice: 256000, percent: 15, coefficient: '×7', descRu: '128 000 – 256 000 руб.', descEn: '128,000 – 256,000 RUB' },
-                                      { maxPrice: Infinity, percent: 10, coefficient: '×8 (Min)', descRu: 'Свыше 256 000 руб.', descEn: 'Above 256,000 RUB' },
-                                    ];
-
-                                    let activeIndex = 0;
-                                    if (orderCalculations.finalPriceRub <= 2000) {
-                                      activeIndex = 0;
-                                    } else {
-                                      const factor = orderCalculations.finalPriceRub / 2000;
-                                      const reductions = factor > 0 ? Math.floor(Math.log2(factor)) + 1 : 0;
-                                      activeIndex = Math.min(brackets.length - 1, reductions);
-                                    }
-
-                                    return (
-                                      <div className="mt-4 space-y-3">
-                                        <button
-                                          type="button"
-                                          onClick={() => setShowPrepaymentBrackets(!showPrepaymentBrackets)}
-                                          className="px-4 py-2.5 text-xs font-black uppercase tracking-wider text-purple-300 bg-purple-950/40 hover:bg-purple-950/60 border-2 border-purple-500/25 rounded-xl flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-sm font-sans"
-                                        >
-                                          <span>{showPrepaymentBrackets ? (lang === 'ru' ? 'Скрыть сетку предоплаты' : 'Hide Prepayment Grid') : (lang === 'ru' ? 'Показать сетку предоплаты' : 'Show Prepayment Grid')}</span>
-                                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showPrepaymentBrackets ? 'rotate-180' : ''}`} />
-                                        </button>
-
-                                        <AnimatePresence>
-                                          {showPrepaymentBrackets && (
-                                            <motion.div
-                                              initial={{ opacity: 0, height: 0 }}
-                                              animate={{ opacity: 1, height: 'auto' }}
-                                              exit={{ opacity: 0, height: 0 }}
-                                              className="bg-[#12051d] border border-[#5b2b7a]/40 rounded-2xl p-4 space-y-3 text-xs sm:text-sm text-[#ebd6f7]/85 overflow-hidden font-sans font-semibold shadow-inner"
-                                            >
-                                              <p className="leading-relaxed text-stone-300 text-xs sm:text-sm">
-                                                {lang === 'ru'
-                                                  ? 'Предоплата рассчитывается автоматически по логарифмической шкале. Чем выше общая стоимость заказа, тем ниже процент предоплаты (шагами по -5% за каждое удвоение бюджета от базовых 50% до минимальных 10%):'
-                                                  : 'Prepayment is calculated automatically on a logarithmic scale. As the order value increases, the prepayment percentage drops in -5% steps for each budget doubling, from 50% down to 10%:'}
-                                              </p>
-
-                                              {isLargeSpecification && (
-                                                <div className="bg-rose-950/40 border-2 border-rose-500/30 p-3 rounded-xl text-rose-300 font-bold mb-2 flex items-center gap-2 text-xs sm:text-sm">
-                                                  <span>⚠️</span>
-                                                  <span>{lang === 'ru' 
-                                                    ? 'Для крупных спецификаций (>100 спрайтов) предоплата зафиксирована на уровне 50% в связи с повышенными проектными рисками.'
-                                                    : 'For large specifications (>100 sprites), the prepayment is fixed at 50% due to increased project management risks.'}</span>
-                                                </div>
-                                              )}
-
-                                              <div className="border border-[#3d1a56] rounded-2xl overflow-hidden divide-y divide-[#3d1a56] font-mono text-xs sm:text-sm">
-                                                <div className="grid grid-cols-4 bg-[#23093b]/60 p-3 text-xs font-bold text-purple-300 uppercase tracking-wider text-center">
-                                                  <div>{lang === 'ru' ? 'Бюджет' : 'Budget'}</div>
-                                                  <div>{lang === 'ru' ? 'Снижение' : 'Reduction'}</div>
-                                                  <div>{lang === 'ru' ? 'Процент' : 'Percent'}</div>
-                                                  <div>{lang === 'ru' ? 'Статус' : 'Status'}</div>
-                                                </div>
-                                                {brackets.map((b, i) => {
-                                                  const isActive = !isLargeSpecification && activeIndex === i;
-                                                  return (
-                                                    <div
-                                                      key={i}
-                                                      className={`grid grid-cols-4 p-3 text-center items-center ${
-                                                        isActive ? 'bg-purple-500/20 text-fuchsia-200 font-extrabold border-l-2 border-fuchsia-500' : 'text-stone-400'
-                                                      }`}
-                                                    >
-                                                      <div className="text-left pl-1 text-xs sm:text-sm font-sans font-bold">{lang === 'ru' ? b.descRu : b.descEn}</div>
-                                                      <div className="text-xs">{b.coefficient}</div>
-                                                      <div className={isActive ? 'text-fuchsia-400 font-extrabold' : 'text-purple-300'}>{b.percent}%</div>
-                                                      <div className="text-[10px] sm:text-xs flex justify-center">
-                                                        {isLargeSpecification ? (
-                                                          b.percent === 50 ? (
-                                                            <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold">{lang === 'ru' ? 'Лимит 50%' : 'Limit 50%'}</span>
-                                                          ) : (
-                                                            <span className="opacity-25">—</span>
-                                                          )
-                                                        ) : isActive ? (
-                                                          <span className="bg-fuchsia-500/25 text-fuchsia-300 border border-fuchsia-500/30 px-2.5 py-0.5 rounded text-[10px] uppercase tracking-wider font-bold animate-pulse">
-                                                            {lang === 'ru' ? 'Активен' : 'Active'}
-                                                          </span>
-                                                        ) : (
-                                                          <span className="opacity-25">—</span>
-                                                        )}
-                                                      </div>
-                                                    </div>
-                                                  );
-                                                })}
-                                              </div>
-                                            </motion.div>
-                                          )}
-                                        </AnimatePresence>
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              ),
-                              value: formatPrice(orderCalculations.prepayAmountRub),
-                              type: 'prepay',
-                              applied: true
-                            }
-                          ];
-
-                          const appliedSteps = allSteps.filter(s => s.applied);
-
-                          return appliedSteps.map((step, index) => {
-                            const stepNumber = index + 1;
-                            const title = lang === 'ru'
-                              ? `Шаг ${stepNumber}: ${step.titleRu}`
-                              : `Step ${stepNumber}: ${step.titleEn}`;
-                            return {
-                              ...step,
-                              title
-                            };
-                          });
-                        })().map((step) => (
-                          <div key={step.id} className="relative pl-12 border-l-2 border-dashed border-[#5b2b7a]/50 last:border-l-0 pb-8 last:pb-2 font-sans">
-                            {/* Step Indicator */}
-                            <div className="absolute -left-[21px] top-0.5 w-10 h-10 rounded-full bg-[#12051d] border-2 border-[#5b2b7a] flex items-center justify-center shadow-lg">
-                              {step.icon}
-                            </div>
-                            
-                            <div className="space-y-2.5">
-                              {/* Header */}
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <span className="font-black text-base sm:text-lg text-[#fbf7ff] flex items-center gap-1.5">
-                                  <span>{step.title}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setOpenStepTooltip(openStepTooltip === step.id ? null : step.id)}
-                                    className="p-1.5 rounded-full text-purple-300 hover:text-white bg-purple-950/45 border border-purple-500/25 hover:bg-purple-900/50 cursor-pointer transition-all active:scale-95 shrink-0"
-                                    title={lang === 'ru' ? 'Подробнее о формуле' : 'More about formula'}
-                                  >
-                                    <Info className="w-3.5 h-3.5" />
-                                  </button>
-                                </span>
-                                <span className={`text-xs sm:text-sm font-mono px-3.5 py-1.5 rounded-full border font-black shadow-md ${
-                                  step.type === 'discount' || step.type === 'noDeadline'
-                                    ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-400'
-                                    : step.type === 'surcharge' || step.type === 'load'
-                                    ? 'bg-rose-950/40 border-rose-500/30 text-rose-400'
-                                    : 'bg-[#12051d] border-[#3d1a56] text-purple-300'
-                                }`}>
-                                  {step.value}
-                                </span>
-                              </div>
-
-                              {/* Tooltip detail block */}
-                              <AnimatePresence>
-                                {openStepTooltip === step.id && (
-                                  <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="bg-[#170a25] rounded-xl p-3.5 border-2 border-purple-500/25 text-xs sm:text-sm text-purple-200 leading-relaxed overflow-hidden font-sans shadow-md"
-                                  >
-                                    <div className="font-extrabold text-purple-300 uppercase tracking-wide mb-1 text-[10px] sm:text-xs flex items-center gap-1">
-                                      <Sparkles className="w-3.5 h-3.5 text-purple-300" />
-                                      <span>{lang === 'ru' ? 'Справочная информация:' : 'Reference Guidelines:'}</span>
-                                    </div>
-                                    <p className="text-[#ebd6f7]/80 leading-relaxed text-xs sm:text-sm font-medium">
-                                      {lang === 'ru' ? step.tipRu : step.tipEn}
-                                    </p>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                              
-                              {/* Formula Display */}
-                              <div className="bg-[#12051d] p-3.5 rounded-xl border border-[#3d1a56] flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs sm:text-sm font-mono font-bold text-[#ebd6f7] shadow-inner">
-                                <span className="text-[#ebd6f7]/40 text-[10px] sm:text-xs uppercase tracking-wider">{lang === 'ru' ? 'Формула расчета:' : 'Mathematical formula:'}</span>
-                                <span className="text-right tracking-tight text-purple-300 font-extrabold">{step.formula}</span>
-                              </div>
-                              
-                              {/* Detailed text */}
-                              <div className="text-xs sm:text-sm text-[#ebd6f7]/80 leading-relaxed pl-1">
-                                {step.explanation}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="space-y-4 pt-1 font-sans">
-                        {orderCalculations.rawItems.length === 0 ? (
-                          <div className="text-center py-10 text-xs text-[#ebd6f7]/40 font-sans">
-                            {t.calculationLogEmpty}
-                          </div>
-                        ) : (
-                          orderCalculations.rawItems.map((item, idx) => {
-                            const cat = CATEGORIES_LIST.find(c => c.id === sprites[idx]?.categoryId) || CATEGORIES_LIST[0];
-                            const baseRateVal = cat.basePrice;
-                            const isMinecraft = sprites[idx]?.categoryId === '7';
-                            return (
-                              <div key={idx} className="bg-[#12051d] p-6 rounded-2xl border-2 border-[#3d1a56] hover:border-purple-400/40 transition-all duration-300 relative overflow-hidden group space-y-5 shadow-lg">
-                                {/* Decorative index indicator */}
-                                <div className="absolute top-0 right-0 bg-[#3d1a56]/40 text-[#ebd6f7]/50 text-xs font-mono px-3 py-1.5 rounded-bl-xl font-bold">
-                                  #{item.index}
-                                </div>
-                                
-                                <div className="flex items-center gap-2.5 flex-wrap">
-                                  <span className="font-extrabold text-base sm:text-lg text-purple-100 font-sans">
-                                    {item.categoryName}
-                                  </span>
-                                  <span className="bg-purple-950/60 border border-purple-500/20 text-purple-300 text-xs font-mono px-2.5 py-0.5 rounded-md font-bold uppercase">
-                                    {item.sizeInfo}
-                                  </span>
-                                  {item.frames > 1 && (
-                                    <span className="bg-amber-950/60 border border-amber-500/20 text-amber-300 text-xs font-mono px-2.5 py-0.5 rounded-md font-bold uppercase">
-                                      {item.frames} {lang === 'ru' ? 'Кадров' : 'Frames'}
-                                    </span>
-                                  )}
-                                  {item.qualitySurchargePercent > 0 && (
-                                    <span className="bg-yellow-950/60 border border-yellow-500/20 text-yellow-300 text-xs font-mono px-2.5 py-0.5 rounded-md font-bold uppercase">
-                                      {item.quality === 'medium' ? (lang === 'ru' ? 'Среднее' : 'Medium') : (lang === 'ru' ? 'Лучшее' : 'Best')}
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                <div className="space-y-2.5 text-xs sm:text-sm font-mono text-[#ebd6f7]/85">
-                                  {/* Base Cost */}
-                                  <div className="flex items-center justify-between border-b border-dashed border-[#3d1a56]/40 pb-2">
-                                    <span className="text-stone-300 font-sans font-bold">{lang === 'ru' ? 'Базовая ставка категории:' : 'Base category rate:'}</span>
-                                    <span className="text-[#ebd6f7] font-bold">{formatPrice(baseRateVal)}</span>
-                                  </div>
-                                  
-                                  {/* Size multiplier / Factor */}
-                                  {!isMinecraft && (
-                                    <div className="flex items-center justify-between border-b border-dashed border-[#3d1a56]/40 pb-2">
-                                      <span className="text-stone-300 font-sans font-bold">{lang === 'ru' ? 'Прибавка за габариты:' : 'Size factor addition:'}</span>
-                                      <span className="text-right text-[#ebd6f7]">
-                                        √({sprites[idx]?.width}×{sprites[idx]?.height}) = {item.sizeFactor}px × {formatPrice(cat.pixelPrice)}/px = +{formatPrice(item.baseCalculatedPrice - baseRateVal)}
-                                      </span>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Explicit Formula Block */}
-                                  <div className="bg-[#170924] p-3.5 rounded-xl border border-purple-500/15 text-xs sm:text-sm space-y-1.5 text-purple-300">
-                                    <div className="text-[10px] sm:text-xs uppercase tracking-wider text-[#ebd6f7]/55 font-bold">
-                                      {lang === 'ru' ? 'Математическая формула статической цены:' : 'Static Price Formula:'}
-                                    </div>
-                                    <div className="font-extrabold font-mono">
-                                      {!isMinecraft ? (
-                                        <div className="flex flex-col gap-1">
-                                          <div className="text-[#ebd6f7]/50">{lang === 'ru' ? 'Цена = Ставка + (Цена/px × √Ш×В)' : 'Price = Rate + (Price/px × √W×H)'}</div>
-                                          <div className="text-fuchsia-300 text-sm font-black border-t border-purple-950/40 pt-1">
-                                            {baseRateVal} ₽ + ({cat.pixelPrice} ₽ × {item.sizeFactor}) = {item.baseCalculatedPrice} ₽
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="flex flex-col gap-1">
-                                          <div className="text-[#ebd6f7]/50">{lang === 'ru' ? 'Цена = Ставка × Скин' : 'Price = Rate × Skin'}</div>
-                                          <div className="text-fuchsia-300 text-sm font-black border-t border-purple-950/40 pt-1">
-                                            {baseRateVal} ₽ × {sprites[idx]?.skinType === '2' ? '2' : '1'} = {item.baseCalculatedPrice} ₽
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Anim frame additions */}
-                                  {item.frames > 1 && (
-                                    <div className="flex items-center justify-between border-b border-dashed border-[#3d1a56]/40 pb-2">
-                                      <span className="text-stone-300 font-sans font-bold">{lang === 'ru' ? 'Анимация (+20% за доп. кадр):' : 'Animation (+20% per extra frame):'}</span>
-                                      <span className="text-[#ebd6f7]">{formatPrice(item.baseCalculatedPrice)} + 20% × {item.frames - 1} = {formatPrice(Math.round(item.baseCalculatedPrice * (1 + 0.2 * (item.frames - 1))))}</span>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Canvas limit penalty */}
-                                  {item.sizeSurplusModifier > 1.0 && (
-                                    <div className="flex items-center justify-between border-b border-dashed border-rose-500/10 pb-2 text-rose-400">
-                                      <span className="font-sans font-bold">{lang === 'ru' ? 'Превышение лимита разрешения:' : 'Canvas size limit surplus modifier:'}</span>
-                                      <span className="font-bold">+{Math.round((item.sizeSurplusModifier - 1.0) * 100)}% (×{item.sizeSurplusModifier.toFixed(3)})</span>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Quality modifier */}
-                                  {item.qualitySurchargePercent > 0 && (
-                                    <div className="flex items-center justify-between border-b border-dashed border-yellow-500/10 pb-2 text-yellow-400">
-                                      <span className="font-sans font-bold">{lang === 'ru' ? 'Наценка за уровень проработки:' : 'Render details surcharge percent:'}</span>
-                                      <span className="font-bold font-mono">+{item.qualitySurchargePercent}%</span>
-                                    </div>
-                                  )}
-
-                                  {(item.frames > 1 || item.sizeSurplusModifier > 1.0 || item.qualitySurchargePercent > 0) && (
-                                    <div className="bg-[#170924] p-3.5 rounded-xl border border-purple-500/15 text-xs sm:text-sm space-y-1.5 text-amber-200">
-                                      <div className="text-[10px] sm:text-xs uppercase tracking-wider text-[#ebd6f7]/55 font-bold">
-                                        {lang === 'ru' ? 'Математический расчет полной цены за оригинал:' : 'Full Single Original Price Calculation:'}
-                                      </div>
-                                      <div className="font-extrabold font-mono">
-                                        <div className="text-[#ebd6f7]/50">
-                                          {lang === 'ru' 
-                                            ? 'Оригинал = Статичная_Цена × Анимация × Штраф × Качество' 
-                                            : 'Original = Static_Price × Animation × Penalty × Quality'}
-                                        </div>
-                                        <div className="text-amber-300 text-sm font-black border-t border-purple-950/40 pt-1">
-                                          {item.baseCalculatedPrice} ₽ 
-                                          {item.frames > 1 ? ` × [1 + 0.2 × (${item.frames} - 1)]` : ''} 
-                                          {item.sizeSurplusModifier > 1.0 ? ` × ${item.sizeSurplusModifier.toFixed(3)}` : ''} 
-                                          {item.qualitySurchargePercent > 0 ? ` × ${1 + item.qualitySurchargePercent / 100}` : ''}
-                                          {" = "}{item.animatedSinglePrice} ₽
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
- 
-                                  {/* Single unit results */}
-                                  <div className="flex items-center justify-between border-b border-dashed border-purple-500/20 pb-2 pt-0.5 font-extrabold text-[#c084fc] text-sm sm:text-base">
-                                    <span className="font-sans">{lang === 'ru' ? 'Цена за оригинал / вариацию:' : 'Single unit original / variation:'}</span>
-                                    <span className="bg-purple-950/30 px-2 py-0.5 rounded border border-purple-500/15">{formatPrice(item.animatedSinglePrice)} / {formatPrice(item.singleVarPrice)}</span>
-                                  </div>
-                                  
-                                  {/* Quantity multiplication Formula */}
-                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-1 gap-2 font-sans font-extrabold text-sm sm:text-base text-[#c084fc]">
-                                    <span>{lang === 'ru' ? 'Базовая цена по позиции:' : 'Base price for position:'}</span>
-                                    <span className="font-mono text-xs sm:text-sm text-right bg-[#1c082d] px-2.5 py-1 rounded-xl border border-[#3d1a56]">
-                                      ({formatPrice(item.animatedSinglePrice)} × {item.countOrig} orig) + ({formatPrice(item.singleVarPrice)} × {item.countVar} var) = {formatPrice(item.totalPrice)}
-                                    </span>
-                                  </div>
- 
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    )}
-
-                    {/* Grand summary list at the bottom of both tabs */}
-                    <div className="pt-4 border-t border-white/10 text-purple-300 font-sans font-bold space-y-2.5 text-xs">
-                      <div className="flex items-center justify-between text-[#ebd6f7]/60">
-                        <span>{lang === 'ru' ? 'Базовая сумма позиций:' : 'Sum of asset base costs:'}</span>
-                        <span className="font-mono font-bold text-sm text-[#ebd6f7]">{formatPrice(orderCalculations.baseTotalRounded)}</span>
-                      </div>
-                      {orderCalculations.actualSpeedRate !== 1.0 && (
-                        <div className="flex items-center justify-between text-yellow-400">
-                          <span>{lang === 'ru' ? 'Множитель за срочность очереди:' : 'Priority queue multiplier surcharge:'}</span>
-                          <span className="font-mono font-bold text-sm">×{orderCalculations.actualSpeedRate} (+25%)</span>
-                        </div>
-                      )}
-                      {orderCalculations.surchargeAmount > 0 && (
-                        <div className="flex items-center justify-between text-rose-400 animate-pulse">
-                          <span>{lang === 'ru' ? 'Наценка за превышение лимита (>100):' : 'Over-limit specifications surcharge:'}</span>
-                          <span className="font-mono font-bold text-sm">+{formatPrice(orderCalculations.surchargeAmount)}</span>
-                        </div>
-                      )}
-                      
-                      {/* Workload Status Surcharge */}
-                      {orderCalculations.loadMarkupAmount > 0 && (
-                        <div className={`flex items-center justify-between ${CURRENT_LOAD_STATUS === 2 ? 'text-rose-400 animate-pulse' : 'text-yellow-400'}`}>
-                          <span>
-                            {CURRENT_LOAD_STATUS === 2
-                              ? (lang === 'ru' ? 'Наценка за полную загруженность очереди (+35%):' : 'Surcharge for full queue workload (+35%):')
-                              : (lang === 'ru' ? 'Наценка за среднюю загруженность очереди (+20%):' : 'Surcharge for medium queue workload (+20%):')
-                            }
-                          </span>
-                          <span className="font-mono font-bold text-sm">+{formatPrice(orderCalculations.loadMarkupAmount)}</span>
-                        </div>
-                      )}
-
-                      {/* No Deadline Discount (-15%) */}
-                      {orderCalculations.noDeadlineDiscountAmount > 0 && (
-                        <div className="flex items-center justify-between text-emerald-400 animate-pulse">
-                          <span>{lang === 'ru' ? 'Скидка за режим без дедлайна (-15%):' : 'No Deadline mode discount (-15%):'}</span>
-                          <span className="font-mono font-bold text-sm">-{formatPrice(orderCalculations.noDeadlineDiscountAmount)}</span>
-                        </div>
-                      )}
-
-                      {/* Display Cost before Progressive Bulk Discount */}
-                      {orderCalculations.hasBulkDiscount && (
-                        <div className="flex items-center justify-between text-[#ebd6f7]/50 font-medium border-t border-[#3d1a56]/20 pt-2">
-                          <span>{lang === 'ru' ? 'Стоимость до оптовой скидки:' : 'Price before bulk discount:'}</span>
-                          <span className="font-mono font-bold text-sm text-[#ebd6f7]/70 line-through decoration-[#ef4444]/60 decoration-1.5">{formatPrice(orderCalculations.priceBeforeDiscountTotal)}</span>
-                        </div>
-                      )}
-
-                      {orderCalculations.hasBulkDiscount && (
-                        <div className="flex items-center justify-between text-emerald-400 animate-pulse pb-1">
-                          <span>{lang === 'ru' ? 'Накопительная оптовая скидка:' : 'Wholesale progressive discount:'}</span>
-                          <span className="font-mono font-bold text-sm">-{formatPrice(orderCalculations.bulkDiscountAmount)}</span>
-                        </div>
-                      )}
-
-                      <div className="pt-3 border-t border-dashed border-[#3d1a56] space-y-2">
-                        <div className="flex items-center justify-between text-emerald-400 text-sm font-black tracking-tight">
-                          <span>{lang === 'ru' ? 'Итоговая стоимость заказа:' : 'Grand Total Amount:'}</span>
-                          <span className="text-xl font-display font-black font-mono text-purple-300">{formatPrice(orderCalculations.finalPriceRub)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-fuchsia-300 font-bold text-xs">
-                          <span>{lang === 'ru' ? 'Сумма обязательной предоплаты:' : 'Required prepayment value:'}</span>
-                          <span className="font-mono">{formatPrice(orderCalculations.prepayAmountRub)} ({orderCalculations.prepayPercent}%)</span>
-                        </div>
-                      </div>
-
-                      {currency === 'usd' && (
-                        <div className="text-stone-400 mt-2 font-semibold text-[10px] leading-relaxed border-t border-[#3d1a56]/40 pt-2 font-mono flex items-center justify-between">
-                          <span>{lang === 'ru' ? 'Конвертация по курсу:' : 'USD Exchange rate conversion:'}</span>
-                          <span>{orderCalculations.finalPriceRub} RUB / {usdRate} = {formatPrice(orderCalculations.finalPriceRub)}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
+            {/* End of log component */}
             {/* Limit Warning Alert */}
             {orderCalculations.totalSpritesCount > 100 && (
               <motion.div 
@@ -4584,16 +4292,16 @@ export default function App() {
                 className="mt-6 bg-[#2d0f19] border-2 border-rose-500/30 rounded-2xl p-5 text-left relative overflow-hidden z-10 flex items-start gap-3.5 shadow-lg"
               >
                 <div className="bg-rose-500/20 text-rose-400 p-2.5 rounded-xl border border-rose-500/30 animate-pulse shrink-0">
-                  <span className="text-xl">⚠️</span>
+                  <Info className="w-5 h-5 text-rose-400" />
                 </div>
                 <div>
                   <h4 className="text-rose-400 font-bold text-sm uppercase tracking-wider mb-1">
                     {lang === 'ru' ? 'Слишком много, сократите ТЗ!' : 'Too much, shorten the specification!'}
                   </h4>
-                  <p className="text-stone-300 text-xs leading-relaxed font-sans">
+                  <p className="text-stone-300 text-sm sm:text-base leading-relaxed font-sans">
                     {lang === 'ru' 
-                      ? `Внимание: Вы превысили оптимальный лимит в 100 спрайтов (всего в ТЗ: ${orderCalculations.totalSpritesCount}). На все последующие позиции действует наценка в +1000% (+${formatPrice(orderCalculations.surchargeAmount)}).`
-                      : `Notice: You have exceeded the optimal limit of 100 sprites (total in spec: ${orderCalculations.totalSpritesCount}). A +1000% surcharge is active for all subsequent positions (+${formatPrice(orderCalculations.surchargeAmount)}).`
+                      ? `Внимание: Вы превысили оптимальный лимит в 100 спрайтов (всего в ТЗ: ${orderCalculations.totalSpritesCount}). На все последующие позиции взимается дополнительная плата +100% (+${formatPrice(orderCalculations.surchargeAmount)}).`
+                      : `Notice: You have exceeded the optimal limit of 100 sprites (total in spec: ${orderCalculations.totalSpritesCount}). An extra fee of +100% is charged for all subsequent positions (+${formatPrice(orderCalculations.surchargeAmount)}).`
                     }
                   </p>
                 </div>
@@ -4622,7 +4330,7 @@ export default function App() {
                     : 'bg-rose-400 animate-pulse shadow-[0_0_10px_#f87171]'
                 }`}></span>
                 <div className="text-left">
-                  <span className="block text-[10px] font-black uppercase tracking-widest text-[#ebd6f7]/60">
+                  <span className="block text-xs font-black uppercase tracking-widest text-[#ebd6f7]/60">
                     {lang === 'ru' ? 'Активный статус исполнителя:' : 'Artist Load Status:'}
                   </span>
                   <span className="text-sm font-extrabold uppercase tracking-wide">
@@ -4709,7 +4417,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setShowDiscountHelp(!showDiscountHelp)}
-                    className="w-5 h-5 rounded-full bg-[#241135] hover:bg-[#3d1a56] border border-purple-400/30 text-purple-300 hover:text-white flex items-center justify-center text-xs font-mono font-black cursor-pointer transition-all active:scale-90"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2a0e42] hover:bg-purple-700/80 border-2 border-purple-400/50 hover:border-purple-300 text-purple-200 hover:text-white flex items-center justify-center text-sm font-black shadow-md cursor-pointer transition-all hover:scale-105 active:scale-95"
                     title={lang === 'ru' ? 'Информация о скидках' : 'Discount Information'}
                   >
                     ?
@@ -4808,7 +4516,7 @@ export default function App() {
                         {lang === 'ru' ? 'Улучшенная скидка 50% действует на каждый последующий ассет.' : 'An upgraded 50% discount applies to each subsequent asset.'}
                       </li>
                     </ul>
-                    <div className="pt-2 border-t border-white/10 text-xs text-stone-300 font-mono">
+                    <div className="pt-2 border-t border-white/10 text-sm text-stone-300 font-mono">
                       {lang === 'ru'
                         ? 'При превышении лимита в 100 позиций скидка отключается из-за наценки за объем.'
                         : 'If the 100-position limit is exceeded, the wholesale discount is disabled in favor of the volume surcharge.'}
@@ -4868,16 +4576,16 @@ export default function App() {
             {CURRENT_LOAD_STATUS === 2 && (
               <div className="bg-rose-950/40 border-2 border-rose-500/30 rounded-2xl p-5 mb-6 text-left relative overflow-hidden z-10 flex items-start gap-3.5 shadow-lg">
                 <div className="bg-rose-500/20 text-rose-400 p-2 rounded-xl border border-rose-500/30 shrink-0">
-                  <span className="text-lg">⚡</span>
+                  <Flame className="w-5 h-5 text-rose-400" />
                 </div>
                 <div>
                   <h4 className="text-rose-400 font-bold text-sm uppercase tracking-wider mb-1">
                     {lang === 'ru' ? 'Режим полной загрузки' : 'Full Queue Enforced'}
                   </h4>
-                  <p className="text-stone-300 text-xs sm:text-sm leading-relaxed font-sans font-semibold">
+                  <p className="text-stone-300 text-sm sm:text-base leading-relaxed font-sans font-semibold">
                     {lang === 'ru' 
-                      ? 'В связи с высокой нагрузкой новые заказы принимаются исключительно в режиме «Без дедлайна» (долгосрочное ожидание) со скидкой -15%. Опция приоритета и стандартные сроки временно отключены.'
-                      : 'Due to extreme load, new orders are accepted exclusively under the "No Deadline" (long-term queue) policy with a -15% discount. Priority option and standard timeframes are temporarily locked.'}
+                      ? 'В связи с высокой нагрузкой новые заказы принимаются исключительно в режиме «Без дедлайна» (долгосрочное ожидание) со скидкой -25%. Опция приоритета и стандартные сроки временно отключены.'
+                      : 'Due to extreme load, new orders are accepted exclusively under the "No Deadline" (long-term queue) policy with a -25% discount. Priority option and standard timeframes are temporarily locked.'}
                   </p>
                 </div>
               </div>
@@ -4895,7 +4603,7 @@ export default function App() {
                       : 'bg-transparent text-[#ebd6f7]/60 border-transparent hover:text-white hover:bg-[#12051d]/40'
                   }`}
                 >
-                  {lang === 'ru' ? '👁️ Визуальный ТЗ' : '👁️ Visual TZ'}
+                  {lang === 'ru' ? 'Визуальный ТЗ' : 'Visual TZ'}
                 </button>
                 <button
                   type="button"
@@ -4906,7 +4614,7 @@ export default function App() {
                       : 'bg-transparent text-[#ebd6f7]/60 border-transparent hover:text-white hover:bg-[#12051d]/40'
                   }`}
                 >
-                  {lang === 'ru' ? '📝 Текст ТЗ' : '📝 Text TZ'}
+                  {lang === 'ru' ? 'Текст ТЗ' : 'Text TZ'}
                 </button>
                 <button
                   type="button"
@@ -4917,7 +4625,7 @@ export default function App() {
                       : 'bg-transparent text-[#ebd6f7]/60 border-transparent hover:text-white hover:bg-[#12051d]/40'
                   }`}
                 >
-                  {lang === 'ru' ? '📕 Справочник' : '📕 Handbook'}
+                  {lang === 'ru' ? 'Справочник' : 'Handbook'}
                 </button>
               </div>
 
@@ -5024,102 +4732,122 @@ export default function App() {
                       <div className="absolute inset-1 border border-purple-500/10 rounded-xl pointer-events-none"></div>
 
                       {/* Header Title */}
-                      <div className="border-b border-purple-500/20 pb-4 text-center sm:text-left flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="border-b border-purple-500/30 pb-5 text-left flex flex-col sm:flex-row sm:items-end justify-between gap-4">
                         <div>
-                          <div className="text-xs font-mono text-purple-400 font-bold uppercase tracking-widest mb-1">
-                            {lang === 'ru' ? 'Официальное техническое задание' : 'Official Technical Specification'}
+                          <div className="text-xs font-mono text-purple-400 font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            {lang === 'ru' ? 'Спецификация к разработке' : 'Development Specification'}
                           </div>
-                          <h4 className="text-xl sm:text-2xl font-display font-black text-fuchsia-300 uppercase tracking-tight">
-                            {lang === 'ru' ? 'СПЕЦИФИКАЦИЯ ЗАКАЗА' : 'ORDER SPECIFICATION'}
+                          <h4 className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-tight leading-none">
+                            {lang === 'ru' ? 'ПАСПОРТ ЗАКАЗА' : 'ORDER PASSPORT'}
                           </h4>
                         </div>
-                        <div className="text-center sm:text-right font-mono text-xs text-[#ebd6f7]/60">
-                          <div>{lang === 'ru' ? 'Исполнитель: Village_' : 'Artist: Village_'}</div>
-                          <div>{lang === 'ru' ? 'Статус: Готов к обсуждению' : 'Status: Ready for review'}</div>
-                          <div className="text-[10px] text-purple-400 mt-1 uppercase font-bold bg-[#220d33] px-2 py-0.5 rounded border border-[#3d1a56]">
-                            {lang === 'ru' ? 'КАЛЬКУЛЯТОР СИД ПРИМЕНЕН' : 'CALCULATOR SEED INTEGRATED'}
-                          </div>
+                        <div className="text-left sm:text-right font-mono text-xs text-[#ebd6f7]/60 space-y-1">
+                          <div className="font-bold text-white">{lang === 'ru' ? 'Исполнитель' : 'Artist'}: <span className="text-purple-300">Village_</span></div>
+                          <div>{lang === 'ru' ? 'Контакты' : 'Contact'}: errorsbills@gmail.com</div>
+                          <div>{lang === 'ru' ? 'Дата формирования' : 'Created'}: {new Date().toLocaleDateString(lang === 'ru' ? 'ru-RU' : 'en-US')}</div>
                         </div>
                       </div>
 
                       {/* Summary Pricing Cards */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-[#241135]/40 p-3.5 rounded-xl border border-purple-500/10">
-                          <div className="text-[10px] uppercase font-bold text-[#ebd6f7]/50">{lang === 'ru' ? 'Валюта заказа' : 'Order Currency'}</div>
-                          <div className="text-base font-bold text-stone-200 mt-0.5 font-mono">{currency === 'rub' ? 'RUB (₽)' : 'USD ($)'}</div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="bg-[#1b0a2a]/80 p-4 rounded-xl border border-purple-500/20">
+                          <div className="text-xs uppercase font-bold text-purple-300/80 mb-1">{lang === 'ru' ? 'Сумма заказа' : 'Total Budget'}</div>
+                          <div className="text-lg font-black text-fuchsia-300 font-mono">{formatPrice(orderCalculations.finalPriceRub)}</div>
                         </div>
-                        <div className="bg-[#241135]/40 p-3.5 rounded-xl border border-purple-500/10">
-                          <div className="text-[10px] uppercase font-bold text-[#ebd6f7]/50">{lang === 'ru' ? 'Всего спрайтов' : 'Total Assets'}</div>
-                          <div className="text-base font-bold text-stone-200 mt-0.5 font-mono">{orderCalculations.totalSpritesCount} шт.</div>
+                        <div className="bg-[#1b0a2a]/80 p-4 rounded-xl border border-emerald-500/20">
+                          <div className="text-xs uppercase font-bold text-emerald-400/80 mb-1">{lang === 'ru' ? 'Предоплата' : 'Prepayment'}</div>
+                          <div className="text-lg font-black text-emerald-400 font-mono">
+                            {formatPrice(orderCalculations.prepayAmountRub)}
+                          </div>
                         </div>
-                        <div className="bg-[#241135]/40 p-3.5 rounded-xl border border-purple-500/10">
-                          <div className="text-[10px] uppercase font-bold text-[#ebd6f7]/50">{lang === 'ru' ? 'Общий бюджет' : 'Total Budget'}</div>
-                          <div className="text-base font-bold text-fuchsia-300 mt-0.5 font-mono">{formatPrice(orderCalculations.finalPriceRub)}</div>
+                        <div className="bg-[#1b0a2a]/80 p-4 rounded-xl border border-purple-500/20">
+                          <div className="text-xs uppercase font-bold text-purple-300/80 mb-1">{lang === 'ru' ? 'Всего позиций' : 'Total Items'}</div>
+                          <div className="text-lg font-bold text-white font-mono">{orderCalculations.totalSpritesCount} шт.</div>
                         </div>
-                        <div className="bg-[#241135]/40 p-3.5 rounded-xl border border-purple-500/10">
-                          <div className="text-[10px] uppercase font-bold text-[#ebd6f7]/50">{lang === 'ru' ? 'Предоплата' : 'Prepayment'}</div>
-                          <div className="text-base font-bold text-emerald-400 mt-0.5 font-mono">
-                            {formatPrice(orderCalculations.prepayAmountRub)} <span className="text-xs text-stone-400">({orderCalculations.prepayPercent}%)</span>
+                        <div className="bg-[#1b0a2a]/80 p-4 rounded-xl border border-purple-500/20">
+                          <div className="text-xs uppercase font-bold text-purple-300/80 mb-1">{lang === 'ru' ? 'Сроки' : 'Timeline'}</div>
+                          <div className="text-sm font-bold text-white uppercase mt-1">
+                            {noDeadline ? (lang === 'ru' ? 'БЕЗ ДЕДЛАЙНА' : 'NO DEADLINE') : (lang === 'ru' ? 'СТАНДАРТ' : 'STANDARD')}
                           </div>
                         </div>
                       </div>
 
-                      {/* Seed Section */}
-                      {generatedSeed && (
-                        <div className="bg-[#1b0a2a]/60 border border-purple-500/15 rounded-xl p-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
-                              <span>🔑</span>
-                              <span>{lang === 'ru' ? 'СИД КОНФИГУРАЦИИ ЗАКАЗА:' : 'ORDER CONFIGURATION SEED:'}</span>
-                            </span>
-                            <span className="text-[10px] font-mono text-[#ebd6f7]/40 uppercase">
-                              {lang === 'ru' ? 'Для быстрого восстановления' : 'For quick restore'}
-                            </span>
-                          </div>
-                          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-start">
-                            <div className="bg-[#0c0314] text-fuchsia-400 font-mono text-xs sm:text-sm px-4 py-3 rounded-xl border border-purple-500/20 w-full break-all select-all leading-relaxed whitespace-pre-wrap flex-1 shadow-inner">
-                              {generatedSeed}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText(generatedSeed);
-                                triggerToast(lang === 'ru' ? 'Сид скопирован!' : 'Seed copied!', 'success');
-                              }}
-                              className="no-export print:hidden bg-purple-500 hover:bg-purple-400 text-[#140620] font-bold text-sm uppercase px-4 py-3 rounded-xl border-2 border-[#140620] transition-all cursor-pointer active:scale-95 shadow shrink-0 h-12 flex items-center justify-center gap-1.5"
-                            >
-                              <Clipboard className="w-3.5 h-3.5" />
-                              <span>{lang === 'ru' ? 'Копировать' : 'Copy'}</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
                       {/* Items ticket list */}
-                      <div className="space-y-4">
-                        <div className="text-xs font-bold uppercase tracking-wider text-purple-300 border-b border-purple-500/15 pb-1">
-                          {lang === 'ru' ? 'СПИСОК ПОЗИЦИЙ ДЛЯ РАЗРАБОТКИ:' : 'DEVELOPMENT ITEM LIST:'}
+                      <div className="space-y-4 pt-2">
+                        <div className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                          {lang === 'ru' ? 'СОСТАВ РАБОТ' : 'WORK CONTENTS'}
+                          <div className="h-px bg-purple-500/30 flex-1 ml-2"></div>
                         </div>
+                        
                         <div className="space-y-3">
                           {orderCalculations.rawItems.map((item, i) => (
-                            <div
-                              key={i}
-                              className="bg-[#1b0a2a]/60 border border-purple-500/15 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4"
-                            >
-                              <div className="space-y-1.5 flex-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="bg-purple-500/20 text-purple-300 font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-purple-500/30">
-                                    #{String(item.index).padStart(2, '0')}
-                                  </span>
-                                  <span className="text-sm font-bold text-[#ebd6f7]">{item.categoryName}</span>
+                            <div key={i} className="bg-[#12051d] border border-[#3d1a56] rounded-xl p-4 sm:p-5 relative overflow-hidden">
+                              <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-fuchsia-500 to-purple-600"></div>
+                              
+                              <div className="flex flex-col md:flex-row gap-4">
+                                {/* Left Side: Item Specs */}
+                                <div className="w-full md:w-1/3 space-y-3 border-b md:border-b-0 md:border-r border-[#3d1a56]/50 pb-3 md:pb-0 md:pr-4">
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-xs font-black text-purple-300 bg-purple-900/40 px-1.5 py-0.5 rounded">#{String(item.index).padStart(2, '0')}</span>
+                                      <span className="text-sm font-bold text-white leading-tight">{item.categoryName}</span>
+                                    </div>
+                                    <div className="text-lg font-black font-mono text-fuchsia-300 mt-2">
+                                      {formatPrice(item.itemFinalPrice)}
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-1.5 text-xs font-mono text-[#ebd6f7]/90">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Сложность:' : 'Complexity:'}</span>
+                                      <span className="font-bold text-fuchsia-300 bg-fuchsia-950/80 px-2 py-0.5 rounded text-xs border border-fuchsia-500/30">
+                                        {item.complexityCategory} ({item.totalComplexity} pts)
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Разработка:' : 'Design:'}</span>
+                                      <span className={`font-bold px-1.5 py-0.5 rounded text-xs ${item.designMode === 'scratch' ? 'text-amber-300 bg-amber-950/60 border border-amber-500/30' : 'text-stone-300'}`}>
+                                        {item.designMode === 'scratch' ? (lang === 'ru' ? 'С нуля (+50%)' : 'Scratch (+50%)') : (lang === 'ru' ? 'По рефереру' : 'Reference')}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Проекция:' : 'Projection:'}</span>
+                                      <span className={`font-bold px-1.5 py-0.5 rounded text-xs ${item.isometry ? 'text-purple-300 bg-purple-900/60 border border-purple-500/30' : 'text-stone-300'}`}>
+                                        {item.isometry ? (lang === 'ru' ? 'Изометрия (+50%)' : 'Isometric (+50%)') : (lang === 'ru' ? '2D Вид' : '2D View')}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Детализация:' : 'Detail:'}</span>
+                                      <span className="font-bold text-purple-200">
+                                        {item.detailLevel === 'detailed' ? (lang === 'ru' ? 'Высокая' : 'High') : item.detailLevel === 'moderate' ? (lang === 'ru' ? 'Средняя' : 'Medium') : (lang === 'ru' ? 'Оптимальная' : 'Optimal')}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Разрешение:' : 'Resolution:'}</span>
+                                      <span className="font-bold text-white">{item.sizeInfo}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Количество:' : 'Qty:'}</span>
+                                      <span className="font-bold text-white">{item.countOrig} ор. {item.countVar > 0 && `+ ${item.countVar} вар.`}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Анимация:' : 'Anim:'}</span>
+                                      <span className="font-bold text-white">
+                                        {item.hasAnimation ? `${item.frames} кадр. (${item.animComplexity})` : (lang === 'ru' ? 'Статика' : 'Static')}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="text-xs text-[#ebd6f7]/70 font-mono flex flex-wrap gap-x-4 gap-y-1">
-                                  <span>{lang === 'ru' ? 'Разрешение:' : 'Resolution:'} <strong className="text-purple-300">{item.sizeInfo}</strong></span>
-                                  <span>{lang === 'ru' ? 'Кадров:' : 'Frames:'} <strong className="text-purple-300">{item.frames}</strong></span>
-                                  <span>{lang === 'ru' ? 'Количество:' : 'Qty:'} <strong className="text-purple-300">{item.countOrig} {lang === 'ru' ? 'ориг.' : 'orig.'} {item.countVar > 0 ? `/ ${item.countVar} подв.` : ''}</strong></span>
-                                </div>
-                                <div className="text-xs font-medium text-stone-300 pl-2.5 border-l-2 border-purple-400/50 italic py-1 bg-black/10 rounded-r-lg mt-1 font-sans">
-                                  {item.description}
+
+                                {/* Right Side: Description */}
+                                <div className="w-full md:w-2/3">
+                                  <div className="text-xs font-bold uppercase tracking-wider text-purple-300/70 mb-1.5">
+                                    {lang === 'ru' ? 'ТЕХНИЧЕСКОЕ ЗАДАНИЕ (ТЗ)' : 'TASK DESCRIPTION'}
+                                  </div>
+                                  <div className="text-sm text-stone-200 leading-relaxed font-sans whitespace-pre-wrap">
+                                    {item.description}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -5127,8 +4855,18 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* Seed code banner for document verification */}
+                      <div className="bg-[#12051d] p-3 rounded-xl border border-purple-500/20 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono min-w-0 overflow-hidden">
+                        <div className="text-purple-300 font-bold uppercase text-xs shrink-0">
+                          {lang === 'ru' ? 'КОД СИДА ДЛЯ ВОССТАНОВЛЕНИЯ ЗАКАЗА:' : 'RECOVERY SEED CODE:'}
+                        </div>
+                        <div className="text-fuchsia-300 bg-[#1b082a] px-3 py-1 rounded border border-fuchsia-500/30 text-xs font-bold tracking-wider select-all break-all max-w-full overflow-hidden">
+                          {generatedSeed}
+                        </div>
+                      </div>
+
                       {/* Footer URL Note */}
-                      <div className="pt-4 border-t border-purple-500/15 flex flex-col sm:flex-row items-center justify-between text-[10px] font-mono text-stone-500">
+                      <div className="pt-4 border-t border-purple-500/15 flex flex-col sm:flex-row items-center justify-between text-xs font-mono text-stone-400">
                         <span>{t.tzUrlNote}</span>
                         <span>{lang === 'ru' ? 'Сгенерировано автоматически' : 'Automatically compiled'} - {new Date().toLocaleDateString()}</span>
                       </div>
@@ -5263,10 +5001,10 @@ export default function App() {
 
               {/* Tab 3: Guide Tab */}
               {activeSpecTab === 'guide' && (
-                <div className="bg-[#12051d] border-2 border-[#3d1a56] rounded-2xl p-5 sm:p-6 space-y-5 text-stone-300 leading-relaxed text-xs sm:text-sm font-sans">
+                <div className="bg-[#12051d] border-2 border-[#3d1a56] rounded-2xl p-5 sm:p-6 space-y-5 text-stone-300 leading-relaxed text-sm sm:text-base font-sans">
                   <div className="space-y-2">
                     <h4 className="text-purple-300 font-bold uppercase text-xs sm:text-sm tracking-wider flex items-center gap-2">
-                      <span>📕</span>
+                      <FileText className="w-4 h-4 text-purple-400" />
                       <span>{lang === 'ru' ? 'Как правильно составить ТЗ?' : 'How to Compile a Specification?'}</span>
                     </h4>
                     <p>
@@ -5276,11 +5014,17 @@ export default function App() {
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                       <div className="bg-rose-950/20 border border-rose-500/25 p-3 rounded-xl">
-                        <strong className="text-rose-400 block text-xs uppercase mb-1">❌ {lang === 'ru' ? 'Плохой пример:' : 'Bad Example:'}</strong>
+                        <div className="flex items-center gap-1.5 mb-1 text-rose-400 font-bold text-xs uppercase">
+                          <X className="w-4 h-4 shrink-0" />
+                          <span>{lang === 'ru' ? 'Плохой пример:' : 'Bad Example:'}</span>
+                        </div>
                         <span className="italic text-stone-400">"Нужен меч 32х32"</span>
                       </div>
                       <div className="bg-[#101b15] border border-emerald-500/25 p-3 rounded-xl">
-                        <strong className="text-emerald-400 block text-xs uppercase mb-1">✅ {lang === 'ru' ? 'Хороший пример:' : 'Good Example:'}</strong>
+                        <div className="flex items-center gap-1.5 mb-1 text-emerald-400 font-bold text-xs uppercase">
+                          <Check className="w-4 h-4 shrink-0" />
+                          <span>{lang === 'ru' ? 'Хороший пример:' : 'Good Example:'}</span>
+                        </div>
                         <span className="text-[#ebd6f7]/90">
                           {lang === 'ru'
                             ? '"Меч древнего рыцаря, золотая узорчатая гарда, треснувшее стальное лезвие с бирюзовым магическим руническим свечением."'
@@ -5351,9 +5095,9 @@ export default function App() {
                         readOnly
                         value={generatedSeed}
                         placeholder={lang === 'ru' ? 'Сид генерируется автоматически...' : 'Seed generates automatically...'}
-                        className="w-full h-20 bg-[#0c0314] text-stone-400 font-mono text-[11px] leading-normal p-3 rounded-xl border border-[#3d1a56]/50 resize-none focus:outline-none select-all"
+                        className="w-full h-20 bg-[#0c0314] text-stone-300 font-mono text-xs sm:text-sm leading-normal p-3 rounded-xl border border-[#3d1a56]/50 resize-none focus:outline-none select-all"
                       />
-                      <p className="text-[10px] text-stone-400 font-medium leading-normal">
+                      <p className="text-xs text-stone-300 font-medium leading-normal">
                         {lang === 'ru' 
                           ? 'Этот код содержит все выбранные параметры и описания. Вы можете сохранить его или переслать исполнителю, чтобы он мгновенно загрузил вашу конфигурацию на сайт.'
                           : 'This code stores all chosen parameters and descriptions. You can save it or send it to the artist so they can instantly load your configuration on the site.'}
@@ -5376,7 +5120,7 @@ export default function App() {
                         
                         {seedError && (
                           <p className="text-xs font-semibold text-rose-400 mt-1">
-                            ⚠️ {seedError}
+                            {seedError}
                           </p>
                         )}
                         {seedSuccess && (
@@ -5411,7 +5155,7 @@ export default function App() {
           <p className="font-mono text-xs tracking-[0.25em] text-purple-400/60 uppercase">
             {lang === 'ru' ? 'Вы достигли края космоса' : 'You have reached the edge of space'}
           </p>
-          <span className="font-mono text-[9px] text-purple-400/35 uppercase">
+          <span className="font-mono text-xs text-purple-400/50 uppercase">
             Village_ LSC • 2026
           </span>
         </div>

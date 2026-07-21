@@ -14,11 +14,17 @@ export interface CategoryData {
   basePrice: number;
   pixelPrice: number;
   maxBaseSize: number;
+  minBaseSize: number;
   supportsAnimation: boolean;
   useCasesRu: string[];
   useCasesEn: string[];
   formulaHelpRu: string;
   formulaHelpEn: string;
+  preferredSizeRu: string;
+  preferredSizeEn: string;
+  popularResRu: string;
+  popularResEn: string;
+  popularPriceNum: number;
   examplesRu: { size: string; price: string }[];
   examplesEn: { size: string; price: string }[];
   imagePath?: string;
@@ -40,6 +46,10 @@ export interface SpriteItemState {
   description: string;
   templateSize: string; // 'custom' or preset sizes
   quality: 'optimal' | 'medium' | 'best';
+  isometry?: boolean;
+  detailLevel?: 'simple' | 'moderate' | 'detailed';
+  animComplexity?: 'simple' | 'medium' | 'complex';
+  designMode?: 'reference' | 'scratch';
 }
 
 export const CATEGORIES_LIST: CategoryData[] = [
@@ -62,22 +72,28 @@ export const CATEGORIES_LIST: CategoryData[] = [
       'Asset Animation: Frame-by-frame animation for items (swings, glowing) and tiles (fluid mediums, interactive elements).'
     ],
     basePrice: 150,
-    pixelPrice: 3,
+    pixelPrice: 0,
     maxBaseSize: 128,
+    minBaseSize: 16,
     supportsAnimation: true,
     useCasesRu: ['оружие и щиты', 'броня', 'зелья', 'блоки окружения', 'деревья и трава', 'мебель'],
     useCasesEn: ['weapons and shields', 'armor', 'potions', 'environment blocks', 'trees and grass', 'furniture'],
-    formulaHelpRu: 'Базовая ставка 150 ₽ + 3 ₽ за каждый пиксель виртуального холста.',
-    formulaHelpEn: 'Base rate 150 ₽ + 3 ₽ per pixel of the virtual canvas.',
+    formulaHelpRu: 'Базовая ставка 150 ₽ + Сложность спрайта (+10% за уровень сложности). Динамическая скидка до 80% при размере < 16px.',
+    formulaHelpEn: 'Base rate 150 ₽ + Sprite complexity (+10% per complexity level). Dynamic discount up to 80% for sizes < 16px.',
+    preferredSizeRu: '16×16 – 128×128 px',
+    preferredSizeEn: '16×16 – 128×128 px',
+    popularResRu: '32×32 px (средняя детализация)',
+    popularResEn: '32×32 px (medium detail)',
+    popularPriceNum: 645,
     examplesRu: [
-      { size: '16x16', price: '198 ₽' },
-      { size: '32x32', price: '246 ₽' },
-      { size: '64x64', price: '342 ₽' }
+      { size: '16x16', price: '585 ₽' },
+      { size: '32x32', price: '645 ₽' },
+      { size: '64x64', price: '765 ₽' }
     ],
     examplesEn: [
-      { size: '16x16', price: '198 ₽' },
-      { size: '32x32', price: '246 ₽' },
-      { size: '64x64', price: '342 ₽' }
+      { size: '16x16', price: '585 ₽' },
+      { size: '32x32', price: '645 ₽' },
+      { size: '64x64', price: '765 ₽' }
     ],
     imagePath: '/images/cat1.gif'
   },
@@ -95,21 +111,29 @@ export const CATEGORIES_LIST: CategoryData[] = [
     ],
     noteRu: 'Расчет стоимости ведется строго по размеру исходной текстуры, а не по сложности визуальной модели.',
     noteEn: 'Cost calculation is strictly based on the size of the source texture, not on the complexity of the 3D model.',
-    basePrice: 400,
-    pixelPrice: 5,
+    basePrice: 250,
+    pixelPrice: 0,
     maxBaseSize: 256,
+    minBaseSize: 64,
     supportsAnimation: true,
     useCasesRu: ['кубические модели', 'персонажи Blockbench', 'оружие', 'техника'],
     useCasesEn: ['blocky models', 'Blockbench characters', 'weapons', 'machinery'],
-    formulaHelpRu: 'Базовая ставка 400 ₽ + 5 ₽ за пиксель размера.',
-    formulaHelpEn: 'Base rate 400 ₽ + 5 ₽ per pixel of size.',
+    formulaHelpRu: 'Базовая ставка 250 ₽ + Сложность спрайта (+10% за уровень сложности). Динамическая скидка до 80% при размере < 64px.',
+    formulaHelpEn: 'Base rate 250 ₽ + Sprite complexity (+10% per complexity level). Dynamic discount up to 80% for sizes < 64px.',
+    preferredSizeRu: '64×64 – 256×256 px',
+    preferredSizeEn: '64×64 – 256×256 px',
+    popularResRu: '64×64 px (средняя детализация)',
+    popularResEn: '64×64 px (medium detail)',
+    popularPriceNum: 975,
     examplesRu: [
-      { size: '16x16', price: '480 ₽' },
-      { size: '32x32', price: '560 ₽' }
+      { size: '16x16', price: '485 ₽' },
+      { size: '32x32', price: '540 ₽' },
+      { size: '64x64', price: '975 ₽' }
     ],
     examplesEn: [
-      { size: '16x16', price: '480 ₽' },
-      { size: '32x32', price: '560 ₽' }
+      { size: '16x16', price: '485 ₽' },
+      { size: '32x32', price: '540 ₽' },
+      { size: '64x64', price: '975 ₽' }
     ],
     imagePath: '/images/cat2.gif'
   },
@@ -129,21 +153,27 @@ export const CATEGORIES_LIST: CategoryData[] = [
       'Icons: Graphical skill badges, effects, buffs/debuffs, or inventory slots.',
       'Indicators (Bars): Character status bars (health, mana, experience, stamina).'
     ],
-    basePrice: 250,
-    pixelPrice: 4,
+    basePrice: 150,
+    pixelPrice: 0,
     maxBaseSize: 128,
+    minBaseSize: 32,
     supportsAnimation: true,
     useCasesRu: ['кнопки меню', 'иконки предметов', 'бары здоровья (HP / MP)', 'маленькие рамки'],
     useCasesEn: ['menu buttons', 'item icons', 'health bars (HP / MP)', 'small frames'],
-    formulaHelpRu: 'Базовая ставка 250 ₽ + 4 ₽ за пиксель размера.',
-    formulaHelpEn: 'Base rate 250 ₽ + 4 ₽ per pixel of size.',
+    formulaHelpRu: 'Базовая ставка 150 ₽ + Сложность спрайта (+10% за уровень сложности). Динамическая скидка до 80% при размере < 32px.',
+    formulaHelpEn: 'Base rate 150 ₽ + Sprite complexity (+10% per complexity level). Dynamic discount up to 80% for sizes < 32px.',
+    preferredSizeRu: '32×32 – 128×128 px',
+    preferredSizeEn: '32×32 – 128×128 px',
+    popularResRu: '32×32 px (средняя детализация)',
+    popularResEn: '32×32 px (medium detail)',
+    popularPriceNum: 585,
     examplesRu: [
-      { size: '16x16', price: '314 ₽' },
-      { size: '32x32', price: '378 ₽' }
+      { size: '16x16', price: '290 ₽' },
+      { size: '32x32', price: '585 ₽' }
     ],
     examplesEn: [
-      { size: '16x16', price: '314 ₽' },
-      { size: '32x32', price: '378 ₽' }
+      { size: '16x16', price: '290 ₽' },
+      { size: '32x32', price: '585 ₽' }
     ],
     imagePath: '/images/cat3.gif'
   },
@@ -163,21 +193,27 @@ export const CATEGORIES_LIST: CategoryData[] = [
       'Typography: Custom stylized pixel fonts designed for the project’s aesthetics.',
       'Logos & Backplates: Main titles, badges, and static loading screens or menu backgrounds.'
     ],
-    basePrice: 500,
-    pixelPrice: 6,
+    basePrice: 250,
+    pixelPrice: 0,
     maxBaseSize: 320,
+    minBaseSize: 64,
     supportsAnimation: true,
     useCasesRu: ['сетка инвентаря', 'окна крафта', 'панели настроек', 'алфавитные шрифты'],
     useCasesEn: ['inventory slots grid', 'crafting windows', 'settings panels', 'custom fonts'],
-    formulaHelpRu: 'Базовая ставка 500 ₽ + 6 ₽ за пиксель размера.',
-    formulaHelpEn: 'Base rate 500 ₽ + 6 ₽ per pixel of size.',
+    formulaHelpRu: 'Базовая ставка 250 ₽ + Сложность спрайта (+10% за уровень сложности). Динамическая скидка до 80% при размере < 64px.',
+    formulaHelpEn: 'Base rate 250 ₽ + Sprite complexity (+10% per complexity level). Dynamic discount up to 80% for sizes < 64px.',
+    preferredSizeRu: '64×64 – 320×320 px',
+    preferredSizeEn: '64×64 – 320×320 px',
+    popularResRu: '128×128 px (средняя детализация)',
+    popularResEn: '128×128 px (medium detail)',
+    popularPriceNum: 1675,
     examplesRu: [
-      { size: '64x64', price: '884 ₽' },
-      { size: '128x128', price: '1268 ₽' }
+      { size: '64x64', price: '1275 ₽' },
+      { size: '128x128', price: '1675 ₽' }
     ],
     examplesEn: [
-      { size: '64x64', price: '884 ₽' },
-      { size: '128x128', price: '1268 ₽' }
+      { size: '64x64', price: '1275 ₽' },
+      { size: '128x128', price: '1675 ₽' }
     ],
     imagePath: '/images/cat4.gif'
   },
@@ -195,21 +231,27 @@ export const CATEGORIES_LIST: CategoryData[] = [
       'Artistic Backgrounds: Intricate full-scale panoramas, landscapes, and menu backdrops.',
       'Complex Logos: Premium main title logo art with elaborate texture work.'
     ],
-    basePrice: 800,
-    pixelPrice: 8,
+    basePrice: 500,
+    pixelPrice: 0,
     maxBaseSize: 352,
+    minBaseSize: 96,
     supportsAnimation: true,
     useCasesRu: ['главные экраны', 'высокодетализированные заставки', 'логотипы игры'],
     useCasesEn: ['main menu backdrops', 'high-detail cutscene art', 'game title logos'],
-    formulaHelpRu: 'Базовая ставка 800 ₽ + 8 ₽ за пиксель размера.',
-    formulaHelpEn: 'Base rate 800 ₽ + 8 ₽ per pixel of size.',
+    formulaHelpRu: 'Базовая ставка 500 ₽ + Сложность спрайта (+10% за уровень сложности). Динамическая скидка до 80% при размере < 96px.',
+    formulaHelpEn: 'Base rate 500 ₽ + Sprite complexity (+10% per complexity level). Dynamic discount up to 80% for sizes < 96px.',
+    preferredSizeRu: '96×96 – 352×352 px',
+    preferredSizeEn: '96×96 – 352×352 px',
+    popularResRu: '256×256 px (средняя детализация)',
+    popularResEn: '256×256 px (medium detail)',
+    popularPriceNum: 4950,
     examplesRu: [
-      { size: '128x128', price: '1824 ₽' },
-      { size: '256x256', price: '2848 ₽' }
+      { size: '128x128', price: '3350 ₽' },
+      { size: '256x256', price: '4950 ₽' }
     ],
     examplesEn: [
-      { size: '128x128', price: '1824 ₽' },
-      { size: '256x256', price: '2848 ₽' }
+      { size: '128x128', price: '3350 ₽' },
+      { size: '256x256', price: '4950 ₽' }
     ],
     imagePath: '/images/cat5.gif'
   },
@@ -229,21 +271,27 @@ export const CATEGORIES_LIST: CategoryData[] = [
     ],
     noteRu: 'Работа ведется исключительно в формате портрета (голова и плечевой пояс). Полные модели персонажей и спрайты во весь рост в данной категории не разрабатываются.',
     noteEn: 'Work is performed exclusively in a portrait format (head and shoulders). Full-body character models or full-length sprites are not created in this category.',
-    basePrice: 600,
-    pixelPrice: 6,
+    basePrice: 300,
+    pixelPrice: 0,
     maxBaseSize: 256,
+    minBaseSize: 48,
     supportsAnimation: true,
     useCasesRu: ['портреты NPC', 'спрайты эмоций', 'аватары профилей', 'карточки героев'],
     useCasesEn: ['NPC dialogue expressions', 'emote icons', 'player profile photos', 'hero cards'],
-    formulaHelpRu: 'Базовая ставка 600 ₽ + 6 ₽ за пиксель размера.',
-    formulaHelpEn: 'Base rate 600 ₽ + 6 ₽ per pixel of size.',
+    formulaHelpRu: 'Базовая ставка 300 ₽ + Сложность спрайта (+10% за уровень сложности). Динамическая скидка до 80% при размере < 48px.',
+    formulaHelpEn: 'Base rate 300 ₽ + Sprite complexity (+10% per complexity level). Dynamic discount up to 80% for sizes < 48px.',
+    preferredSizeRu: '48×48 – 256×256 px',
+    preferredSizeEn: '48×48 – 256×256 px',
+    popularResRu: '64×64 px (средняя детализация)',
+    popularResEn: '64×64 px (medium detail)',
+    popularPriceNum: 1530,
     examplesRu: [
-      { size: '32x32', price: '792 ₽' },
-      { size: '64x64', price: '984 ₽' }
+      { size: '32x32', price: '645 ₽' },
+      { size: '64x64', price: '1530 ₽' }
     ],
     examplesEn: [
-      { size: '32x32', price: '792 ₽' },
-      { size: '64x64', price: '984 ₽' }
+      { size: '32x32', price: '645 ₽' },
+      { size: '64x64', price: '1530 ₽' }
     ],
     imagePath: '/images/cat6.gif'
   },
@@ -264,11 +312,17 @@ export const CATEGORIES_LIST: CategoryData[] = [
     basePrice: 400,
     pixelPrice: 0,
     maxBaseSize: 512,
+    minBaseSize: 0,
     supportsAnimation: false,
     useCasesRu: ['Скины игроков (64x64 / 128x128)', 'Скины мобов'],
     useCasesEn: ['Player Skins (64x64 / 128x128)', 'Mob textures'],
-    formulaHelpRu: 'Стандартный скин: 400 ₽. HD скин (повышенная детализация): 800 ₽.',
-    formulaHelpEn: 'Standard Skin: 400 ₽. HD Skin (enhanced details): 800 ₽.',
+    formulaHelpRu: 'Стандартный скин: 400 ₽. HD скин: 800 ₽.',
+    formulaHelpEn: 'Standard Skin: 400 ₽. HD Skin: 800 ₽.',
+    preferredSizeRu: '64×64 / 128×128 px',
+    preferredSizeEn: '64×64 / 128×128 px',
+    popularResRu: '64×64 px (Стандартный скин)',
+    popularResEn: '64×64 px (Standard Skin)',
+    popularPriceNum: 400,
     examplesRu: [
       { size: 'Стандартный', price: '400 ₽' },
       { size: 'HD-текстура', price: '800 ₽' }
@@ -291,23 +345,47 @@ export const CATEGORIES_LIST: CategoryData[] = [
     pointsEn: [
       'Custom graphic configurations, particle effects, Paintings, and pixel concepts.'
     ],
-    basePrice: 1000,
-    pixelPrice: 8,
+    basePrice: 800,
+    pixelPrice: 0,
     maxBaseSize: 512,
+    minBaseSize: 64,
     supportsAnimation: true,
     useCasesRu: ['Картины', 'эффекты частиц', 'кастомные концепты'],
     useCasesEn: ['Paintings', 'particle states', 'custom pixel concepts'],
-    formulaHelpRu: 'Базовая ставка 1000 ₽ + 8 ₽ за пиксель размера.',
-    formulaHelpEn: 'Base rate 1000 ₽ + 8 ₽ per pixel of size.',
+    formulaHelpRu: 'Базовая ставка 800 ₽ + Сложность спрайта (+10% за уровень сложности). Динамическая скидка до 80% при размере < 64px.',
+    formulaHelpEn: 'Base rate 800 ₽ + Sprite complexity (+10% per complexity level). Dynamic discount up to 80% for sizes < 64px.',
+    preferredSizeRu: '64×64 – 512×512 px',
+    preferredSizeEn: '64×64 – 512×512 px',
+    popularResRu: '64×64 px (средняя детализация)',
+    popularResEn: '64×64 px (medium detail)',
+    popularPriceNum: 1720,
     examplesRu: [
-      { size: '32x32', price: '1256 ₽' }
+      { size: '32x32', price: '1720 ₽' }
     ],
     examplesEn: [
-      { size: '32x32', price: '1256 ₽' }
+      { size: '32x32', price: '1720 ₽' }
     ],
     imagePath: '/images/cat8.gif' // reuse items as fallback
   }
 ];
+
+export function getQualityPoints(categoryId: string, level: string | undefined): number {
+  const map: Record<string, [number, number, number]> = {
+    '1': [0, 10, 20],
+    '2': [2, 12, 24],
+    '3': [0, 10, 20],
+    '4': [4, 14, 28],
+    '5': [6, 16, 32],
+    '6': [3, 13, 26],
+    '7': [0, 0, 0],
+    '8': [10, 20, 30],
+  };
+
+  const pts = map[categoryId] || [0, 10, 20];
+  if (level === 'detailed' || level === 'best') return pts[2];
+  if (level === 'moderate' || level === 'medium') return pts[1];
+  return pts[0];
+}
 
 export const TRANSLATIONS = {
   ru: {
@@ -377,7 +455,7 @@ export const TRANSLATIONS = {
     canvasResolutionHelpTitle: 'Размер холста:',
     canvasResolutionHelpInfo: 'Линейное разрешение напрямую влияет на возможную детализацию изображения. Для экстремально больших разрешений, превышающих установленный лимит категории, включается прогрессивный штрафной коэффициент (+0.5% за каждый пиксель превышения), так как сложность отрисовки растет нелинейно.',
     sizeThresholdLimit: 'Лимит размера этой категории:',
-    overLimitPriceWarning: 'При превышении: +0.5% к цене за каждый лишний пиксель габарита!',
+    overLimitPriceWarning: 'Внимание: размер превышает предпочтительный лимит для данной категории!',
     baseSizeThresholdInfo: 'Штрафной порог:',
     standardText: 'Стандартный',
     hdText: 'HD-текстура',
@@ -424,14 +502,14 @@ export const TRANSLATIONS = {
     discord: 'Дискорд',
     email: 'Почта',
     noDeadlineBtn: 'Без дедлайна',
-    noDeadlineDesc: 'Убирает все будущие дедлайны и ставит заказ на долгосрочное ожидание. Предоставляет скидку 15% на весь заказ.',
-    noDeadlineSurchargeNote: '(Скидка 15% не действует при полной загруженности очереди)',
+    noDeadlineDesc: 'Убирает все будущие дедлайны и ставит заказ на долгосрочное ожидание. Предоставляет скидку 25% на весь заказ.',
+    noDeadlineSurchargeNote: '(Скидка 25% не действует при полной загруженности очереди)',
     loadStatusLabel: 'Загруженность очереди:',
     loadStatusFree: 'Свободный',
     loadStatusMedium: 'Средний (+20% на весь заказ)',
     loadStatusFull: 'Полный (+35% на весь заказ)',
     loadStatusFullNoDeadline: 'Полный (+35%, только без дедлайна)',
-    orderBlockedWarning: 'Внимание! Прием стандартных заказов временно приостановлен из-за полной загруженности исполнителя. Размещение заказа возможно только с опцией «Без дедлайна» (действует наценка +35%, скидка 15% отключена).'
+    orderBlockedWarning: 'Внимание! Прием стандартных заказов временно приостановлен из-за полной загруженности исполнителя. Размещение заказа возможно только с опцией «Без дедлайна» (действует наценка +35%, скидка 25% отключена).'
   },
   en: {
     title: 'Village_',
@@ -500,7 +578,7 @@ export const TRANSLATIONS = {
     canvasResolutionHelpTitle: 'Canvas Size:',
     canvasResolutionHelpInfo: 'Linear resolution directly impacts detail level. For extremely large sizes exceeding the category limit, a progressive penalty of +0.5% is applied for each additional pixel of dimensions, as complex artwork scaling is non-linear.',
     sizeThresholdLimit: 'Size limit for this category:',
-    overLimitPriceWarning: 'When exceeded: +0.5% rate for each pixel over the threshold!',
+    overLimitPriceWarning: 'Warning: size exceeds the preferred limit for this category!',
     baseSizeThresholdInfo: 'Penalty threshold:',
     standardText: 'Standard',
     hdText: 'HD Texture',
@@ -547,13 +625,13 @@ export const TRANSLATIONS = {
     discord: 'Discord',
     email: 'Email',
     noDeadlineBtn: 'No Deadline',
-    noDeadlineDesc: 'Removes all future deadlines and sets the order to long-term waiting. Provides a 15% discount on the entire order.',
-    noDeadlineSurchargeNote: '(15% discount is deactivated under full load status)',
+    noDeadlineDesc: 'Removes all future deadlines and sets the order to long-term waiting. Provides a 25% discount on the entire order.',
+    noDeadlineSurchargeNote: '(25% discount is deactivated under full load status)',
     loadStatusLabel: 'Queue Load Status:',
     loadStatusFree: 'Free',
     loadStatusMedium: 'Medium (+20% on entire order)',
     loadStatusFull: 'Full (+35% on entire order)',
     loadStatusFullNoDeadline: 'Full (+35%, only No Deadline allowed)',
-    orderBlockedWarning: 'Notice! Standard orders are temporarily suspended due to full workload. Ordering is only available with the "No Deadline" option selected (+35% surcharge applies, 15% discount is deactivated).'
+    orderBlockedWarning: 'Notice! Standard orders are temporarily suspended due to full workload. Ordering is only available with the "No Deadline" option selected (+35% surcharge applies, 25% discount is deactivated).'
   }
 };

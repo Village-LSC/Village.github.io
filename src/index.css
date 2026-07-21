@@ -71,3 +71,51 @@
   }
 }
 
+/* Pixel floating animations for Advanced complexity level button */
+@keyframes floatPixel1 {
+  0% { transform: translateY(0) scale(0.6) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-35px) scale(1) rotate(45deg); opacity: 0; }
+}
+@keyframes floatPixel2 {
+  0% { transform: translateY(0) scale(0.8) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateY(-40px) scale(0.5) rotate(-30deg); opacity: 0; }
+}
+@keyframes floatPixel3 {
+  0% { transform: translateY(0) scale(0.5) rotate(0deg); opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { transform: translateY(-45px) scale(1.2) rotate(90deg); opacity: 0; }
+}
+@keyframes floatPixel4 {
+  0% { transform: translateY(0) scale(0.7) rotate(0deg); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(-38px) scale(0.6) rotate(15deg); opacity: 0; }
+}
+@keyframes floatPixel5 {
+  0% { transform: translateY(0) scale(0.9) rotate(0deg); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-42px) scale(0.7) rotate(-45deg); opacity: 0; }
+}
+
+.animate-pixel-1 {
+  animation: floatPixel1 2.2s infinite ease-out;
+}
+.animate-pixel-2 {
+  animation: floatPixel2 1.8s infinite ease-out 0.4s;
+}
+.animate-pixel-3 {
+  animation: floatPixel3 2.5s infinite ease-out 0.1s;
+}
+.animate-pixel-4 {
+  animation: floatPixel4 2.0s infinite ease-out 0.7s;
+}
+.animate-pixel-5 {
+  animation: floatPixel5 2.3s infinite ease-out 0.3s;
+}
+
