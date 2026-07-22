@@ -14,7 +14,11 @@ import {
   Sparkles,
   Zap,
   Box,
-  Palette
+  Palette,
+  Tag,
+  Maximize2,
+  PenTool,
+  Copy
 } from 'lucide-react';
 
 interface CalculationLogProps {
@@ -117,7 +121,7 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
                 >
                   <div className="flex items-center gap-2.5">
                     <HelpCircle className="w-5 h-5 text-fuchsia-400 shrink-0" />
-                    <span>{isRu ? 'Справочник правил, формул и таблиц (Изометрия, Дизайн с нуля, Предоплата)' : 'Rules, Formulas & Reference Tables (Isometric, Scratch Design, Prepayment)'}</span>
+                    <span>{isRu ? 'Справочник правил, формул и таблиц (Перспектива, Дизайн с нуля, Предоплата)' : 'Rules, Formulas & Reference Tables (Perspective, Scratch Design, Prepayment)'}</span>
                   </div>
                   <ChevronDown className={`w-5 h-5 transition-transform ${showRulesExplanation ? 'rotate-180' : ''}`} />
                 </button>
@@ -143,9 +147,9 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
                         <div className="bg-[#12051d] p-3.5 rounded-xl border border-[#3d1a56]/80 space-y-1.5">
                           <span className="font-bold text-amber-300 text-xs sm:text-sm flex items-center gap-1.5">
                             <Palette className="w-4 h-4 text-amber-400" />
-                            {isRu ? '2. Дизайн с нуля и Изометрия (+50%)' : '2. Scratch Design & Isometric (+50%)'}
+                            {isRu ? '2. Дизайн с нуля (+25%) и Перспектива (+50%)' : '2. Scratch Design (+25%) & Perspective (+50%)'}
                           </span>
-                          <p>{isRu ? 'Разработка нового дизайна без референсов (+50%) и Изометрический вид (+50%) умножают итоговые очки сложности в 1.5–2.0 раза.' : 'Creating design without reference (+50%) and Isometric projection (+50%) apply 1.5x–2.0x multipliers to complexity score.'}</p>
+                          <p>{isRu ? 'Разработка нового концепта без референсов (+25% к цене) и Объёмная перспектива (3D/Изометрия: +50% к очкам сложности) рассчитываются прозрачно.' : 'Scratch design (+25% price) and Volumetric perspective (3D/Isometry: +50% complexity score) are calculated transparently.'}</p>
                         </div>
 
                         <div className="bg-[#12051d] p-3.5 rounded-xl border border-[#3d1a56]/80 space-y-1.5">
@@ -153,7 +157,7 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
                             <Zap className="w-4 h-4 text-purple-400" />
                             {isRu ? '3. Детализация и кадры анимации' : '3. Detail Level & Animation'}
                           </span>
-                          <p>{isRu ? 'Очки сложности зависят от проработки деталей (до +20 pts), стиля анимации (до +10 pts) и деления количества кадров (каждые 2/4/6 кадров = +1 pt).' : 'Complexity points account for details (up to +20 pts), animation style (up to +10 pts), and frame dividers.'}</p>
+                          <p>{isRu ? 'Очки сложности зависят от детализации (+0..32 pts), стилистики (+25% к баллам), анимации (+0..10 pts) и количества кадров.' : 'Complexity points account for detailing (+0..32 pts), specific style (+25% score boost), animation type, and frame count.'}</p>
                         </div>
 
                         <div className="bg-[#12051d] p-3.5 rounded-xl border border-[#3d1a56]/80 space-y-1.5">
@@ -161,7 +165,7 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
                             <Coins className="w-4 h-4 text-emerald-400" />
                             {isRu ? '4. Вариации (50%) и Опт' : '4. Variations (50%) & Bulk'}
                           </span>
-                          <p>{isRu ? 'Вариации стоят ровно 50% от стоимости оригинала. Накопительные скидки на заказ: 1-10 шт (0%), 11-50 шт (-25%), >50 шт (-50%).' : 'Variations cost 50% of original. Progressive volume discounts: 1-10 (0%), 11-50 (-25%), 50+ (-50%).'}</p>
+                          <p>{isRu ? 'Вариации стоят ровно 50% от стоимости оригинала. Накопительные оптовые скидки на заказ: от 11 до 50 шт (-25%), свыше 50 шт (-50%).' : 'Variations cost 50% of original. Progressive volume discounts: 11-50 (-25%), 50+ (-50%).'}</p>
                         </div>
                       </div>
 
@@ -170,7 +174,7 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
                         <div className="flex items-center justify-between border-b border-[#3d1a56] pb-2">
                           <span className="font-extrabold text-amber-300 uppercase tracking-wider text-xs sm:text-sm flex items-center gap-2">
                             <Sparkles className="w-4 h-4 text-amber-400" />
-                            {isRu ? 'Множители типа задачи (Дизайн с нуля / Изометрия)' : 'Task Mode Multipliers (Scratch / Isometric)'}
+                            {isRu ? 'Множители типа задачи (С нуля / Стиль / Перспектива)' : 'Task Mode Multipliers (Scratch / Style / Perspective)'}
                           </span>
                         </div>
 
@@ -180,7 +184,7 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
                               <tr className="border-b border-[#3d1a56] text-purple-300 font-bold uppercase text-xs">
                                 <th className="p-2.5">{isRu ? 'Параметр' : 'Parameter'}</th>
                                 <th className="p-2.5">{isRu ? 'Настройка' : 'Setting'}</th>
-                                <th className="p-2.5">{isRu ? 'Коэффициент' : 'Multiplier'}</th>
+                                <th className="p-2.5">{isRu ? 'Модификатор' : 'Modifier'}</th>
                                 <th className="p-2.5">{isRu ? 'Эффект' : 'Effect'}</th>
                               </tr>
                             </thead>
@@ -189,25 +193,25 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
                                 <td className="p-2.5 font-bold">{isRu ? 'Разработка' : 'Design Mode'}</td>
                                 <td className="p-2.5 text-stone-300">{isRu ? 'По референсу' : 'From Reference'}</td>
                                 <td className="p-2.5 text-purple-300 font-bold">1.0×</td>
-                                <td className="p-2.5 text-stone-400">{isRu ? 'Базовый расчёт' : 'Standard rate'}</td>
+                                <td className="p-2.5 text-stone-400">{isRu ? 'Базовый тариф' : 'Standard rate'}</td>
                               </tr>
                               <tr className="hover:bg-purple-900/20">
                                 <td className="p-2.5 font-bold">{isRu ? 'Разработка' : 'Design Mode'}</td>
                                 <td className="p-2.5 text-amber-300 font-bold">{isRu ? 'Дизайн с нуля' : 'From Scratch'}</td>
-                                <td className="p-2.5 text-amber-300 font-bold">1.5× (+50%)</td>
-                                <td className="p-2.5 text-amber-200/80">{isRu ? 'Разработка концепта и формы' : 'Concept creation'}</td>
+                                <td className="p-2.5 text-amber-300 font-bold">+25% {isRu ? 'к цене' : 'to price'}</td>
+                                <td className="p-2.5 text-amber-200/80">{isRu ? 'Создание уникального концепта' : 'Unique concept design'}</td>
                               </tr>
                               <tr className="hover:bg-purple-900/20">
-                                <td className="p-2.5 font-bold">{isRu ? 'Проекция' : 'Projection'}</td>
-                                <td className="p-2.5 text-purple-300 font-bold">{isRu ? 'Изометрия (3D view)' : 'Isometric'}</td>
-                                <td className="p-2.5 text-purple-300 font-bold">1.5× (+50%)</td>
-                                <td className="p-2.5 text-purple-200/80">{isRu ? 'Перспектива и 3 плоскости' : '3D plane perspective'}</td>
+                                <td className="p-2.5 font-bold">{isRu ? 'Спецификация' : 'Specific Style'}</td>
+                                <td className="p-2.5 text-purple-300 font-bold">{isRu ? 'Стиль / Палитра' : 'Target Style/Palette'}</td>
+                                <td className="p-2.5 text-purple-300 font-bold">+25% {isRu ? 'к баллам' : 'to score'}</td>
+                                <td className="p-2.5 text-purple-200/80">{isRu ? 'Адаптация под сторонний стиль' : 'Matching visual style'}</td>
                               </tr>
-                              <tr className="bg-fuchsia-950/30 hover:bg-fuchsia-900/40 font-bold">
-                                <td className="p-2.5 text-fuchsia-300">{isRu ? 'Комбо' : 'Combo'}</td>
-                                <td className="p-2.5 text-fuchsia-300">{isRu ? 'С нуля + Изометрия' : 'Scratch + Isometric'}</td>
-                                <td className="p-2.5 text-fuchsia-300 font-black">2.0× (+100%)</td>
-                                <td className="p-2.5 text-fuchsia-200">{isRu ? 'Удвоение очков сложности' : 'Doubled complexity score'}</td>
+                              <tr className="hover:bg-purple-900/20">
+                                <td className="p-2.5 font-bold">{isRu ? 'Перспектива' : 'Perspective'}</td>
+                                <td className="p-2.5 text-fuchsia-300 font-bold">{isRu ? 'Объёмная (3D / Изометрия)' : 'Volumetric (3D / Iso)'}</td>
+                                <td className="p-2.5 text-fuchsia-300 font-bold">+50% {isRu ? 'к баллам' : 'to score'}</td>
+                                <td className="p-2.5 text-fuchsia-200/80">{isRu ? 'Трехмерность, ракурс и глубина' : 'Spatial volume & depth'}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -303,13 +307,13 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
                             </thead>
                             <tbody className="divide-y divide-[#3d1a56]/40 text-[#ebd6f7]">
                               {[
-                                { pts: '0 – 15 pts', nameRu: 'Низкая', nameEn: 'Low', markup: '+0%', ex: '1 000 ₽' },
-                                { pts: '16 – 30 pts', nameRu: 'Оптимальная', nameEn: 'Optimal', markup: '+15%', ex: '1 150 ₽' },
-                                { pts: '31 – 50 pts', nameRu: 'Средняя', nameEn: 'Medium', markup: '+35%', ex: '1 350 ₽' },
-                                { pts: '51 – 70 pts', nameRu: 'Умеренная', nameEn: 'Moderate', markup: '+55%', ex: '1 550 ₽' },
-                                { pts: '71 – 85 pts', nameRu: 'Сложная', nameEn: 'Complex', markup: '+75%', ex: '1 750 ₽' },
-                                { pts: '86 – 100 pts', nameRu: 'Экстремальная', nameEn: 'Extreme', markup: '+95%', ex: '1 950 ₽' },
-                                { pts: '> 100 pts', nameRu: 'Максимальная', nameEn: 'Maximum', markup: '+100% (+1%/pt)', ex: '2 000 ₽+' }
+                                { pts: '0 – 10 pts', nameRu: 'Низкая', nameEn: 'Low', markup: '+0% … +10%', ex: '400 ₽ … 1 100 ₽' },
+                                { pts: '11 – 20 pts', nameRu: 'Оптимальная', nameEn: 'Optimal', markup: '+15% … +25%', ex: '1 150 ₽ … 1 250 ₽' },
+                                { pts: '21 – 30 pts', nameRu: 'Средняя', nameEn: 'Medium', markup: '+30% … +45%', ex: '1 300 ₽ … 1 450 ₽' },
+                                { pts: '31 – 40 pts', nameRu: 'Умеренная', nameEn: 'Moderate', markup: '+50% … +70%', ex: '1 500 ₽ … 1 700 ₽' },
+                                { pts: '41 – 50 pts', nameRu: 'Сложная', nameEn: 'Complex', markup: '+75% … +100%', ex: '1 750 ₽ … 2 000 ₽' },
+                                { pts: '51 – 100 pts', nameRu: 'Экстремальная', nameEn: 'Extreme', markup: '+105% … +275%', ex: '2 050 ₽ … 3 750 ₽' },
+                                { pts: '> 100 pts', nameRu: 'Максимальная', nameEn: 'Maximum', markup: '> +275% (+100%/pt)', ex: '3 800 ₽+' }
                               ].map((row, cIdx) => (
                                 <tr key={cIdx} className="hover:bg-purple-900/20 transition-colors">
                                   <td className="p-2.5 font-bold text-fuchsia-300">{row.pts}</td>
@@ -353,55 +357,102 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
                         transition={{ delay: idx * 0.04 }}
                         className="bg-[#180726] border border-[#3d1a56] rounded-2xl overflow-hidden hover:border-purple-500/50 transition-all shadow-md"
                       >
-                        {/* Header Item Banner */}
-                        <div
-                          className="p-4 sm:p-5 flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center"
-                        >
-                          <div className="flex items-center gap-3.5">
-                            <div className="bg-purple-900/60 text-purple-200 font-black text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-purple-500/30 font-mono">
-                              #{item.index}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h4 className="text-white font-extrabold text-base sm:text-lg">{item.categoryName}</h4>
-                                <span className="text-xs uppercase font-mono font-bold px-2.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-500/30">
-                                  {item.complexityCategory}
-                                </span>
-                                {item.designMode === 'scratch' && (
-                                  <span className="text-xs uppercase font-mono font-bold px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/30">
-                                    {isRu ? 'С нуля (+50%)' : 'Scratch (+50%)'}
-                                  </span>
-                                )}
-                                {item.isometry && (
-                                  <span className="text-xs uppercase font-mono font-bold px-2.5 py-0.5 rounded bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500/30">
-                                    {isRu ? 'Изометрия (+50%)' : 'Isometric (+50%)'}
-                                  </span>
-                                )}
+                        {/* Header Item Banner with Badges */}
+                        <div className="p-4 sm:p-5 flex flex-col gap-3">
+                          <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+                            <div className="flex items-center gap-3.5">
+                              <div className="bg-purple-900/60 text-purple-200 font-black text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-purple-500/30 font-mono">
+                                #{item.index}
                               </div>
-                              <div className="text-xs sm:text-sm text-[#ebd6f7]/70 font-mono mt-1">
-                                {item.countOrig} {isRu ? 'ориг.' : 'orig.'} {item.countVar > 0 && `+ ${item.countVar} ${isRu ? 'вар.' : 'var.'}`}
-                                {item.frames > 1 && ` • ${item.frames} ${isRu ? 'кадров' : 'frames'}`}
-                                {item.sizeInfo && ` • ${item.sizeInfo}`}
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h4 className="text-white font-extrabold text-base sm:text-lg">{item.categoryName}</h4>
+                                  <span className="text-xs uppercase font-mono font-bold px-2.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-500/30">
+                                    {item.complexityCategory}
+                                  </span>
+                                </div>
+                                <div className="text-xs sm:text-sm text-[#ebd6f7]/70 font-mono mt-0.5">
+                                  {item.countOrig} {isRu ? 'ориг.' : 'orig.'} {item.countVar > 0 && `+ ${item.countVar} ${isRu ? 'вар.' : 'var.'}`}
+                                  {item.frames > 1 && ` • ${item.frames} ${isRu ? 'кадров' : 'frames'}`}
+                                  {item.sizeInfo && ` • ${item.sizeInfo}`}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-[#3d1a56]/50 pt-3 sm:pt-0">
+                              <div className="text-right font-mono">
+                                {hasDiscounts && (
+                                  <span className="text-emerald-400 text-xs sm:text-sm font-bold block">
+                                    -{formatPrice(item.itemBulkDiscountAmount)} ({isRu ? 'скидка' : 'discount'})
+                                  </span>
+                                )}
+                                {hasSurcharges && (
+                                  <span className="text-rose-400 text-xs sm:text-sm font-bold block">
+                                    +{formatPrice(item.itemSurcharge)} ({isRu ? 'наценка' : 'surcharge'})
+                                  </span>
+                                )}
+                                <span className="text-lg sm:text-xl font-black text-purple-200">
+                                  {formatPrice(item.itemFinalPrice)}
+                                </span>
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-[#3d1a56]/50 pt-3 sm:pt-0">
-                            <div className="text-right font-mono">
-                              {hasDiscounts && (
-                                <span className="text-emerald-400 text-xs sm:text-sm font-bold block">
-                                  -{formatPrice(item.itemBulkDiscountAmount)} ({isRu ? 'скидка' : 'discount'})
-                                </span>
-                              )}
-                              {hasSurcharges && (
-                                <span className="text-rose-400 text-xs sm:text-sm font-bold block">
-                                  +{formatPrice(item.itemSurcharge)} ({isRu ? 'наценка' : 'surcharge'})
-                                </span>
-                              )}
-                              <span className="text-lg sm:text-xl font-black text-purple-200">
-                                {formatPrice(item.itemFinalPrice)}
+                          {/* Selected Option Visual Badges (Плашки выбора) */}
+                          <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-[#3d1a56]/40">
+                            {/* Detail Level Badge */}
+                            <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 shadow-sm flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                              {isRu ? 'Детализация:' : 'Detail:'} {item.detailLevel === 'detailed' ? (isRu ? 'Высокая (+20 pts)' : 'High (+20 pts)') : item.detailLevel === 'moderate' ? (isRu ? 'Средняя (+10 pts)' : 'Medium (+10 pts)') : (isRu ? 'Простая (+0 pts)' : 'Simple (+0 pts)')}
+                            </span>
+
+                            {/* Skin Model Badge for Minecraft */}
+                            {item.categoryId === '7' && (
+                              <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-amber-950/80 text-amber-300 border border-amber-500/40 shadow-sm flex items-center gap-1.5">
+                                <Box className="w-3.5 h-3.5 text-amber-400" />
+                                {isRu ? `Модель: ${item.skinType === '2' ? 'Сложная / Стив (+20 pts)' : 'Простая / Алекс (+10 pts)'}` : `Model: ${item.skinType === '2' ? 'Steve (+20 pts)' : 'Alex (+10 pts)'}`}
                               </span>
-                            </div>
+                            )}
+
+                            {/* Scratch Design Badge */}
+                            {item.designMode === 'scratch' && (
+                              <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-amber-950/90 text-amber-300 border border-amber-400/50 shadow-sm flex items-center gap-1.5">
+                                <PenTool className="w-3.5 h-3.5 text-amber-400" />
+                                {isRu ? 'С нуля (+25% к цене)' : 'Scratch (+25% price)'}
+                              </span>
+                            )}
+
+                            {/* Specific Style Badge */}
+                            {item.styleMode === 'specific' && (
+                              <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-purple-950/90 text-purple-200 border border-purple-400/50 shadow-sm flex items-center gap-1.5">
+                                <Palette className="w-3.5 h-3.5 text-purple-300" />
+                                {isRu ? `Стиль: ${item.styleName || 'Определённый'} (+25% к очкам)` : `Style: ${item.styleName || 'Specific'} (+25% score)`}
+                              </span>
+                            )}
+
+                            {/* Perspective Badge (Only if not category 7) */}
+                            {item.isometry && item.categoryId !== '7' && (
+                              <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-fuchsia-950/90 text-fuchsia-200 border border-fuchsia-400/50 shadow-sm flex items-center gap-1.5">
+                                <Box className="w-3.5 h-3.5 text-fuchsia-300" />
+                                {isRu ? 'Изометрия / 3D (+50% к очкам)' : 'Isometric / 3D (+50% score)'}
+                              </span>
+                            )}
+
+                            {/* Animation Badge */}
+                            {item.hasAnimation && (
+                              <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-cyan-950/90 text-cyan-200 border border-cyan-400/50 shadow-sm flex items-center gap-1.5">
+                                <Zap className="w-3.5 h-3.5 text-cyan-300" />
+                                {item.frames} {isRu ? 'кадров' : 'frames'} ({item.animComplexity === 'complex' ? '1.0' : item.animComplexity === 'medium' ? '0.5' : '0.25'} {isRu ? 'pts/кадр' : 'pts/frame'})
+                              </span>
+                            )}
+
+                            {/* Variations Badge */}
+                            {item.countVar > 0 && (
+                              <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-indigo-950/90 text-indigo-200 border border-indigo-400/50 shadow-sm flex items-center gap-1.5">
+                                <Copy className="w-3.5 h-3.5 text-indigo-300" />
+                                +{item.countVar} {isRu ? 'вариаций (50% цены)' : 'variations (50% price)'}
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -432,54 +483,70 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
                                         </div>
                                       )}
 
-                                      {item.categoryId !== '7' ? (
-                                        <div className="space-y-2 pt-1">
-                                          <div className="font-bold text-purple-200 flex justify-between items-center">
-                                            <span>{isRu ? 'Сумма очков сложности (Score):' : 'Total Complexity Score:'}</span>
-                                            <span className="font-mono text-fuchsia-300 font-black text-sm">{item.totalComplexity} pts</span>
+                                      <div className="space-y-2 pt-1">
+                                        {item.categoryId === '7' && (
+                                          <div className="flex justify-between items-center text-amber-300 pb-1.5 border-b border-[#3d1a56]/60 font-mono text-xs">
+                                            <span>{isRu ? 'Модель скина Minecraft:' : 'Minecraft Skin Model:'}</span>
+                                            <span className="font-bold">{item.skinType === '2' ? 'Стив (Сложный, +20 pts)' : 'Алекс (Простой, +10 pts)'}</span>
+                                          </div>
+                                        )}
+
+                                        <div className="font-bold text-purple-200 flex justify-between items-center">
+                                          <span>{isRu ? 'Сумма очков сложности (Score):' : 'Total Complexity Score:'}</span>
+                                          <span className="font-mono text-fuchsia-300 font-black text-sm">{item.totalComplexity} pts</span>
+                                        </div>
+
+                                        <div className="pl-3.5 space-y-1.5 border-l-2 border-purple-500/40 font-mono text-xs text-[#ebd6f7]/80">
+                                          <div className="flex justify-between">
+                                            <span>• {isRu ? 'Детализация' : 'Details'} ({item.detailLevel}):</span>
+                                            <span>+{item.detailPoints ?? (item.detailLevel === 'detailed' ? 20 : item.detailLevel === 'moderate' ? 10 : 0)} pts</span>
                                           </div>
 
-                                          <div className="pl-3.5 space-y-1.5 border-l-2 border-purple-500/40 font-mono text-xs text-[#ebd6f7]/80">
-                                            <div className="flex justify-between">
-                                              <span>• {isRu ? 'Детализация' : 'Details'} ({item.detailLevel}):</span>
-                                              <span>+{item.baseGeneralComplexity - (item.hasAnimation ? (item.animComplexity === 'complex' ? 10 : item.animComplexity === 'medium' ? 5 : 0) + Math.ceil(item.frames / (item.animComplexity === 'complex' ? 2 : item.animComplexity === 'medium' ? 4 : 6)) : 0)} pts</span>
+                                          {item.hasAnimation && (
+                                            <div className="flex justify-between text-amber-300">
+                                              <span>• {isRu ? 'Анимация' : 'Anim'} ({item.frames} {isRu ? 'кадров' : 'frames'} × {item.animComplexity === 'complex' ? '1.0' : item.animComplexity === 'medium' ? '0.5' : '0.25'} pts):</span>
+                                              <span>+{(item.animPoints || 0) + (item.framePoints || 0)} pts</span>
                                             </div>
+                                          )}
 
-                                            {item.hasAnimation && (
-                                              <div className="flex justify-between text-amber-300">
-                                                <span>• {isRu ? 'Анимация' : 'Anim'} ({item.frames} {isRu ? 'кадров' : 'frames'}, {item.animComplexity}):</span>
-                                                <span>+{(item.animComplexity === 'complex' ? 10 : item.animComplexity === 'medium' ? 5 : 0) + Math.ceil(item.frames / (item.animComplexity === 'complex' ? 2 : item.animComplexity === 'medium' ? 4 : 6))} pts</span>
-                                              </div>
-                                            )}
-
+                                          {item.categoryId !== '7' && (
                                             <div className="flex justify-between">
-                                              <span>• {isRu ? 'Размерный фактор' : 'Size Factor'} ({item.sizeFactor}px / step {item.complexityStep}px):</span>
+                                              <span>• {isRu ? 'Размерный фактор' : 'Size Factor'} ({item.sizeFactor}px / шаг {item.complexityStep}px):</span>
                                               <span>+{item.dimensionalComplexity} pts</span>
                                             </div>
+                                          )}
 
-                                            {item.totalComplexityMultiplier > 1.0 && (
-                                              <div className="flex justify-between text-fuchsia-300 font-bold">
-                                                <span>• {isRu ? 'Множитель (С нуля / Изометрия)' : 'Multiplier (Scratch/Iso)'}:</span>
-                                                <span>×{item.totalComplexityMultiplier}</span>
-                                              </div>
-                                            )}
-                                          </div>
+                                          {item.styleMode === 'specific' && (
+                                            <div className="flex justify-between text-purple-300 font-bold">
+                                              <span>• {isRu ? 'Модификатор стиля (+25% к очкам)' : 'Style Modifier (+25% score)'}:</span>
+                                              <span>×1.25</span>
+                                            </div>
+                                          )}
 
-                                          <div className="bg-[#12051d] p-3 rounded-lg border border-[#3d1a56] flex justify-between items-center mt-2">
-                                            <span className="font-bold text-purple-200">
-                                              {isRu ? 'Итоговая наценка за сложность:' : 'Total Complexity Markup:'}
-                                            </span>
-                                            <span className="font-mono font-black text-fuchsia-300">
-                                              +{Math.round((item.animatedSinglePrice / (item.baseCalculatedPrice || basePrice) - 1) * 100)}%
-                                            </span>
+                                          {item.isometry && item.categoryId !== '7' && (
+                                            <div className="flex justify-between text-fuchsia-300 font-bold">
+                                              <span>• {isRu ? 'Модификатор перспективы (+50% к очкам)' : 'Perspective Modifier (+50% score)'}:</span>
+                                              <span>×1.50</span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <div className="bg-[#12051d] p-3 rounded-lg border border-[#3d1a56] flex justify-between items-center mt-2">
+                                          <span className="font-bold text-purple-200">
+                                            {isRu ? 'Итоговая наценка за сложность:' : 'Total Complexity Markup:'}
+                                          </span>
+                                          <span className="font-mono font-black text-fuchsia-300">
+                                            +{item.surchargePercentPercent ?? Math.round(((item.animatedSinglePrice / (item.designMode === 'scratch' ? 1.25 : 1)) / (item.baseCalculatedPrice || basePrice) - 1) * 100)}%
+                                          </span>
+                                        </div>
+
+                                        {item.designMode === 'scratch' && (
+                                          <div className="flex justify-between items-center text-amber-300 text-xs font-mono pt-1">
+                                            <span>• {isRu ? 'Рисование с нуля:' : 'Draw from Scratch:'}</span>
+                                            <span className="font-bold">+25% {isRu ? 'к итоговой цене' : 'to final price'}</span>
                                           </div>
-                                        </div>
-                                      ) : (
-                                        <div className="flex justify-between items-center text-purple-300 pt-1">
-                                          <span>{isRu ? 'Тип скина Minecraft:' : 'Minecraft Skin Type:'}</span>
-                                          <span className="font-mono font-bold">{item.sizeInfo}</span>
-                                        </div>
-                                      )}
+                                        )}
+                                      </div>
 
                                       <div className="pt-2.5 border-t border-[#3d1a56] flex justify-between items-center font-bold text-white text-sm">
                                         <span>{isRu ? 'Цена 1 оригинала:' : 'Price per 1 Original:'}</span>

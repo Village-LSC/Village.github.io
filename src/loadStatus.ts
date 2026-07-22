@@ -3,4 +3,4 @@
 // 0 - Свободный (Green, no price changes)
 // 1 - Средний (Yellow, +20% markup on the entire order)
 // 2 - Полный (Red, fully blocks ordering, EXCEPT if "No Deadline" is selected/ON)
-export const CURRENT_LOAD_STATUS: 0 | 1 | 2 = 0;
+export const CURRENT_LOAD_STATUS: 0 | 1 | 2 = 1;

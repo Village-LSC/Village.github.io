@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Info, X, Calculator, Zap, Sparkles, Layers } from 'lucide-react';
 
 interface Particle {
   id: number;
@@ -228,10 +229,20 @@ interface AnimationComplexitySelectionProps {
   onChange: (val: 'simple' | 'medium' | 'complex') => void;
   lang: 'ru' | 'en';
   spriteId: number;
+  frames?: number;
+  totalComplexity?: number;
 }
 
-export function AnimationComplexitySelection({ value, onChange, lang, spriteId }: AnimationComplexitySelectionProps) {
+export function AnimationComplexitySelection({ 
+  value, 
+  onChange, 
+  lang, 
+  spriteId,
+  frames = 1,
+  totalComplexity
+}: AnimationComplexitySelectionProps) {
   const [justUpgraded, setJustUpgraded] = useState(false);
+  const [showInfoPanel, setShowInfoPanel] = useState(false);
 
   const levels = {
     simple: {
@@ -241,7 +252,9 @@ export function AnimationComplexitySelection({ value, onChange, lang, spriteId }
       labelEn: 'Simple Animation',
       descRu: 'Смещение, покачивание или поворот готового объекта',
       descEn: 'Offset, sway, or rotation of an existing asset',
-      points: '0',
+      points: '0.25',
+      rateVal: 0.25,
+      framesForOnePt: 4,
       color: '#10b981',
       glowColor: 'rgba(16,185,129,0.4)',
       glowBorder: 'rgba(16,185,129,0.5)',
@@ -260,7 +273,9 @@ export function AnimationComplexitySelection({ value, onChange, lang, spriteId }
       labelEn: 'Medium Animation',
       descRu: 'Циклическая деформация, бег, атака или взмах крыльев',
       descEn: 'Cyclic deformation, running cycles, attacks, or wing flaps',
-      points: '+5',
+      points: '0.5',
+      rateVal: 0.5,
+      framesForOnePt: 2,
       color: '#f59e0b',
       glowColor: 'rgba(245,158,11,0.4)',
       glowBorder: 'rgba(245,158,11,0.5)',
@@ -279,7 +294,9 @@ export function AnimationComplexitySelection({ value, onChange, lang, spriteId }
       labelEn: 'Complex Animation',
       descRu: 'Полноценные динамические спецэффекты (взрывы, магия, огонь, искры)',
       descEn: 'Full hand-drawn dynamic special effects (explosions, magic, fire, sparks)',
-      points: '+10',
+      points: '1.0',
+      rateVal: 1.0,
+      framesForOnePt: 1,
       color: '#d946ef',
       glowColor: 'rgba(217,70,239,0.45)',
       glowBorder: 'rgba(217,70,239,0.5)',
@@ -294,6 +311,12 @@ export function AnimationComplexitySelection({ value, onChange, lang, spriteId }
   };
 
   const current = levels[value];
+  const safeFrames = Math.max(1, frames);
+  const currentEarnedPts = Math.floor(safeFrames * current.rateVal);
+  const remainder = (safeFrames * current.rateVal) - currentEarnedPts;
+  const framesNeededForNext = current.framesForOnePt === 1 
+    ? 0 
+    : (current.framesForOnePt - (safeFrames % current.framesForOnePt)) % current.framesForOnePt;
 
   const handleUpgrade = () => {
     setJustUpgraded(true);
@@ -373,10 +396,28 @@ export function AnimationComplexitySelection({ value, onChange, lang, spriteId }
         }
       `}</style>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2.5 gap-1.5">
-        <label className="text-sm font-bold uppercase tracking-wider text-purple-300">
-          {lang === 'ru' ? 'Сложность анимации:' : 'Animation Complexity:'}
-        </label>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2.5 gap-2">
+        <div className="flex items-center gap-2.5">
+          <label className="text-sm font-bold uppercase tracking-wider text-purple-300">
+            {lang === 'ru' ? 'Сложность анимации:' : 'Animation Complexity:'}
+          </label>
+
+          {/* Info Button */}
+          <button
+            type="button"
+            onClick={() => setShowInfoPanel(!showInfoPanel)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer select-none active:scale-95 shadow-[0_0_12px_rgba(6,182,212,0.2)] ${
+              showInfoPanel 
+                ? 'bg-cyan-500 text-black border-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.5)]' 
+                : 'bg-cyan-950/80 hover:bg-cyan-900 border-cyan-400/50 text-cyan-200 hover:text-white'
+            }`}
+            title={lang === 'ru' ? 'Показать/скрыть таблицу расчёта кадров' : 'Toggle frame calculation table'}
+          >
+            <Info className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>{showInfoPanel ? (lang === 'ru' ? 'Скрыть инфо' : 'Hide info') : (lang === 'ru' ? 'Информация' : 'Info')}</span>
+          </button>
+        </div>
+
         <span className="text-[10px] text-stone-400 uppercase tracking-widest font-bold">
           {lang === 'ru' ? 'Нажмите для изменения сложности' : 'Click to change complexity'}
         </span>
@@ -405,7 +446,6 @@ export function AnimationComplexitySelection({ value, onChange, lang, spriteId }
           <div className="absolute bottom-1 right-1 w-1.5 h-1.5 border-b border-r border-white/20 pointer-events-none z-20" />
 
           {/* Smooth dynamic gradient stretching from right to left based on complexity */}
-          {/* Emerald Gradient for Simple */}
           <div 
             className="absolute right-0 top-0 bottom-0 pointer-events-none transition-all duration-700 ease-out z-0"
             style={{
@@ -415,7 +455,6 @@ export function AnimationComplexitySelection({ value, onChange, lang, spriteId }
             }}
           />
 
-          {/* Amber Gradient for Medium */}
           <div 
             className="absolute right-0 top-0 bottom-0 pointer-events-none transition-all duration-700 ease-out z-0"
             style={{
@@ -425,7 +464,6 @@ export function AnimationComplexitySelection({ value, onChange, lang, spriteId }
             }}
           />
 
-          {/* Fuchsia/Purple Gradient for Complex */}
           <div 
             className="absolute right-0 top-0 bottom-0 pointer-events-none transition-all duration-700 ease-out z-0"
             style={{
@@ -489,7 +527,7 @@ export function AnimationComplexitySelection({ value, onChange, lang, spriteId }
               {/* Right Status Column */}
               <div className="flex flex-col items-end justify-center gap-1 z-10 shrink-0 select-none">
                 <span className={`text-xs font-black font-mono px-2 py-1 rounded-md ${current.badgeClass}`}>
-                  {current.points} PTS
+                  {current.points} {lang === 'ru' ? 'pts/кадр' : 'pts/frame'}
                 </span>
               </div>
             </motion.div>
@@ -503,6 +541,219 @@ export function AnimationComplexitySelection({ value, onChange, lang, spriteId }
           />
         </button>
       </div>
+
+      {/* Inline Info Accordion Panel */}
+      <AnimatePresence>
+        {showInfoPanel && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="bg-[#130722] border-2 border-cyan-500/40 rounded-2xl p-4 sm:p-5 text-[#ebd6f7] shadow-[0_0_30px_rgba(6,182,212,0.15)] relative">
+              {/* Panel Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-purple-500/20 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-purple-950/80 border border-purple-400/40 text-purple-300">
+                    <Calculator className="w-4 h-4 text-cyan-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                      {lang === 'ru' ? 'Расчёт баллов анимации' : 'Animation Frame Calculation'}
+                    </h3>
+                    <p className="text-[11px] text-purple-300/80 font-mono">
+                      {lang === 'ru' ? 'Накопительная система целых чисел (без дробей)' : 'Whole-integer accumulation system'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowInfoPanel(false)}
+                  className="p-1.5 rounded-lg bg-stone-900/80 hover:bg-rose-950 text-stone-400 hover:text-rose-300 border border-stone-800 transition-all cursor-pointer active:scale-90"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Accumulator Rule Box */}
+              <div className="bg-cyan-950/40 border border-cyan-500/30 rounded-xl p-3 mb-4 space-y-1">
+                <div className="flex items-center gap-2 text-cyan-300 font-bold text-xs uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
+                  <span>{lang === 'ru' ? 'Правило накопительного расчёта' : 'Integer Accumulation Rule'}</span>
+                </div>
+                <p className="text-xs text-stone-300 leading-relaxed font-sans">
+                  {lang === 'ru' 
+                    ? 'Баллы за анимацию всегда прибавляются строго целыми числами (без дробных значений). Кадры накапливают прогресс, и при достижении каждых полных 1.0 баллов начисляется +1 к сложности.'
+                    : 'Animation points are strictly added as whole integers (no fractional values). Frames accumulate progress, and every full 1.0 points earned awards +1 to complexity.'}
+                </p>
+              </div>
+
+              {/* Current Active Live Summary Card */}
+              <div className="bg-[#1c0a32] border border-purple-500/30 rounded-xl p-3.5 mb-4 space-y-2.5 shadow-inner">
+                <div className="flex items-center justify-between text-xs font-bold text-purple-200 uppercase tracking-wider pb-2 border-b border-purple-500/20">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{lang === 'ru' ? 'Текущий расчёт для данного спрайта' : 'Current Sprite Calculation'}</span>
+                  </div>
+                  <span className="font-mono text-cyan-300">{safeFrames} {lang === 'ru' ? 'кадров' : 'frames'}</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                  <div className="bg-[#12051d] p-2 rounded-lg border border-purple-500/20">
+                    <span className="block text-[10px] uppercase font-bold text-stone-400 mb-0.5">
+                      {lang === 'ru' ? 'Сложность' : 'Complexity'}
+                    </span>
+                    <span className={`text-xs font-black uppercase ${current.textClass}`}>
+                      {lang === 'ru' ? current.labelRu : current.labelEn}
+                    </span>
+                  </div>
+
+                  <div className="bg-[#12051d] p-2 rounded-lg border border-purple-500/20">
+                    <span className="block text-[10px] uppercase font-bold text-stone-400 mb-0.5">
+                      {lang === 'ru' ? 'Ставка' : 'Rate'}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-cyan-300">
+                      {current.rateVal} {lang === 'ru' ? 'pts/кадр' : 'pts/frame'}
+                    </span>
+                  </div>
+
+                  <div className="bg-[#12051d] p-2 rounded-lg border border-purple-500/20">
+                    <span className="block text-[10px] uppercase font-bold text-stone-400 mb-0.5">
+                      {lang === 'ru' ? 'Начислено' : 'Earned'}
+                    </span>
+                    <span className="text-xs font-mono font-black text-emerald-400">
+                      +{currentEarnedPts} pts
+                    </span>
+                  </div>
+
+                  <div className="bg-[#12051d] p-2 rounded-lg border border-purple-500/20">
+                    <span className="block text-[10px] uppercase font-bold text-stone-400 mb-0.5">
+                      {lang === 'ru' ? 'До +1 балла' : 'To Next +1 Pt'}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-amber-300">
+                      {framesNeededForNext === 0 
+                        ? (lang === 'ru' ? 'Ровно' : 'Exact') 
+                        : `${framesNeededForNext} ${lang === 'ru' ? 'кадр(а)' : 'frame(s)'}`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress Bar for Current Pt */}
+                {current.framesForOnePt > 1 && (
+                  <div className="space-y-1 pt-1">
+                    <div className="flex justify-between text-[11px] font-mono text-stone-300">
+                      <span>{lang === 'ru' ? 'Прогресс накопления балла:' : 'Point accumulation progress:'}</span>
+                      <span className="font-bold text-cyan-300">
+                        {safeFrames % current.framesForOnePt} / {current.framesForOnePt} {lang === 'ru' ? 'кадров' : 'frames'}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-stone-900 overflow-hidden border border-purple-500/20 p-0.5">
+                      <div 
+                        className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-300 shadow-[0_0_8px_#38bdf8]"
+                        style={{ width: `${((safeFrames % current.framesForOnePt) / current.framesForOnePt) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Dynamic Comparative Table */}
+              <div className="space-y-2 mb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-purple-400" />
+                  <span>{lang === 'ru' ? 'Динамическая таблица норм кадров' : 'Dynamic Frame Rates Table'}</span>
+                </h4>
+
+                <div className="overflow-x-auto rounded-xl border border-purple-500/25 bg-[#0e0417]">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#1a0729] text-stone-300 font-mono uppercase text-[10px]">
+                      <tr>
+                        <th className="p-2 sm:p-2.5 border-b border-purple-500/20">{lang === 'ru' ? 'Сложность' : 'Level'}</th>
+                        <th className="p-2 sm:p-2.5 border-b border-purple-500/20">{lang === 'ru' ? 'Ставка/кадр' : 'Rate/frame'}</th>
+                        <th className="p-2 sm:p-2.5 border-b border-purple-500/20">{lang === 'ru' ? 'Кадров для 1 балла' : 'Frames for 1 pt'}</th>
+                        <th className="p-2 sm:p-2.5 border-b border-purple-500/20">{lang === 'ru' ? `Итого (${safeFrames} кадров)` : `Score (${safeFrames} frames)`}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-purple-500/10 font-sans">
+                      {/* Simple */}
+                      <tr className={value === 'simple' ? 'bg-emerald-950/40 font-bold border-l-4 border-l-emerald-400' : 'hover:bg-purple-950/20'}>
+                        <td className="p-2 sm:p-2.5 text-emerald-400 font-bold">
+                          {lang === 'ru' ? 'Простая' : 'Simple'}
+                        </td>
+                        <td className="p-2 sm:p-2.5 font-mono">0.25 pts</td>
+                        <td className="p-2 sm:p-2.5 font-mono font-extrabold text-white">4 {lang === 'ru' ? 'кадра' : 'frames'}</td>
+                        <td className="p-2 sm:p-2.5 font-mono text-emerald-300">
+                          +{Math.floor(safeFrames * 0.25)} pts
+                        </td>
+                      </tr>
+
+                      {/* Medium */}
+                      <tr className={value === 'medium' ? 'bg-amber-950/40 font-bold border-l-4 border-l-amber-400' : 'hover:bg-purple-950/20'}>
+                        <td className="p-2 sm:p-2.5 text-amber-400 font-bold">
+                          {lang === 'ru' ? 'Средняя' : 'Medium'}
+                        </td>
+                        <td className="p-2 sm:p-2.5 font-mono">0.50 pts</td>
+                        <td className="p-2 sm:p-2.5 font-mono font-extrabold text-white">2 {lang === 'ru' ? 'кадра' : 'frames'}</td>
+                        <td className="p-2 sm:p-2.5 font-mono text-amber-300">
+                          +{Math.floor(safeFrames * 0.50)} pts
+                        </td>
+                      </tr>
+
+                      {/* Complex */}
+                      <tr className={value === 'complex' ? 'bg-fuchsia-950/40 font-bold border-l-4 border-l-fuchsia-400' : 'hover:bg-purple-950/20'}>
+                        <td className="p-2 sm:p-2.5 text-fuchsia-400 font-bold">
+                          {lang === 'ru' ? 'Сложная' : 'Complex'}
+                        </td>
+                        <td className="p-2 sm:p-2.5 font-mono">1.00 pt</td>
+                        <td className="p-2 sm:p-2.5 font-mono font-extrabold text-white">1 {lang === 'ru' ? 'кадр' : 'frame'}</td>
+                        <td className="p-2 sm:p-2.5 font-mono text-fuchsia-300">
+                          +{Math.floor(safeFrames * 1.00)} pts
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Threshold Milestones Table for Active Level */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-purple-300">
+                  {lang === 'ru' 
+                    ? `Пороги накопления для «${current.labelRu}» (${current.rateVal} pts/кадр):` 
+                    : `Threshold milestones for "${current.labelEn}" (${current.rateVal} pts/frame):`}
+                </h4>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono text-center">
+                  {[1, 2, 3, 4].map((pts) => {
+                    const reqFrames = pts * current.framesForOnePt;
+                    const isReached = safeFrames >= reqFrames;
+                    return (
+                      <div 
+                        key={pts} 
+                        className={`p-2 rounded-xl border transition-all ${
+                          isReached 
+                            ? 'bg-purple-900/40 border-purple-400/60 text-white shadow-sm' 
+                            : 'bg-stone-900/40 border-stone-800 text-stone-400'
+                        }`}
+                      >
+                        <span className="block text-[10px] text-stone-400 uppercase">
+                          +{pts} {pts === 1 ? (lang === 'ru' ? 'балл' : 'pt') : (lang === 'ru' ? 'балла' : 'pts')}
+                        </span>
+                        <strong className={isReached ? 'text-emerald-400 text-xs' : 'text-stone-300 text-xs'}>
+                          {reqFrames} {lang === 'ru' ? 'кадров' : 'frames'}
+                        </strong>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

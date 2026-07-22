@@ -1073,6 +1073,7 @@ export default function App() {
   const [activeHelp, setActiveHelp] = useState<{ [key: string]: boolean }>({});
   const [detailHelp, setDetailHelp] = useState<{ [key: string]: boolean }>({});
   const [designHelp, setDesignHelp] = useState<{ [key: string]: boolean }>({});
+  const [styleHelp, setStyleHelp] = useState<{ [key: string]: boolean }>({});
   const [isometryHelp, setIsometryHelp] = useState<{ [key: string]: boolean }>({});
 
   // Interactive Terms of Collaboration states
@@ -1115,7 +1116,9 @@ export default function App() {
           iso: s.isometry ? 1 : 0,
           dl: s.detailLevel || 'simple',
           ac: s.animComplexity || 'simple',
-          dm: s.designMode || 'reference'
+          dm: s.designMode || 'reference',
+          sm: s.styleMode || 'free',
+          sn: s.styleName || ''
         }))
       };
       const json = JSON.stringify(data);
@@ -1154,6 +1157,8 @@ export default function App() {
           const detailLvl = item.dl || (item.q === 'best' ? 'detailed' : item.q === 'medium' ? 'moderate' : 'simple');
           const animComp = item.ac || 'simple';
           const designMd = item.dm || 'reference';
+          const styleMd = item.sm || 'free';
+          const styleNm = item.sn || '';
           const isIsometric = item.iso === 1;
 
           return {
@@ -1175,7 +1180,9 @@ export default function App() {
             isometry: isIsometric,
             detailLevel: detailLvl as 'simple' | 'moderate' | 'detailed',
             animComplexity: animComp as 'simple' | 'medium' | 'complex',
-            designMode: designMd as 'reference' | 'scratch'
+            designMode: designMd as 'reference' | 'scratch',
+            styleMode: styleMd as 'free' | 'specific',
+            styleName: styleNm
           };
         });
         
@@ -1499,56 +1506,49 @@ export default function App() {
     let detailLevel: 'simple' | 'moderate' | 'detailed' = 'simple';
     let animComplexity: 'simple' | 'medium' | 'complex' = 'simple';
     let designMode: 'reference' | 'scratch' = 'reference';
+    let styleMode: 'free' | 'specific' = 'free';
+    let styleName = '';
     let isometry = false;
     let frames = 1;
     let animModeLogText = t.standardText;
 
-    if (sprite.categoryId !== '7') {
-      isometry = sprite.isometry || false;
+    // Isometry is not applicable to Minecraft skins (3D by nature)
+    isometry = sprite.categoryId === '7' ? false : (sprite.isometry || false);
+    designMode = sprite.designMode || 'reference';
+    styleMode = sprite.styleMode || 'free';
+    styleName = sprite.styleName || '';
 
-      detailLevel = sprite.detailLevel || (sprite.quality === 'best' ? 'detailed' : sprite.quality === 'medium' ? 'moderate' : 'simple');
-      const detailPoints = getQualityPoints(sprite.categoryId, detailLevel);
+    let animPoints = 0;
+    let framePoints = 0;
 
-      designMode = sprite.designMode || 'reference';
-
-      let animPoints = 0;
-      let framePoints = 0;
-
-      if (sprite.hasAnimation && cat.supportsAnimation) {
-        if (sprite.frameMode === 'direct') {
-          frames = Math.max(1, sprite.framesDirect);
-          animModeLogText = `${t.animMethodDirect}: ${frames} ${t.tzFrames}`;
-        } else {
-          const duration = sprite.animDuration || 0.1;
-          const delay = Math.max(0.01, sprite.animDelay || 0.1);
-          frames = Math.max(1, Math.round(duration / delay));
-          animModeLogText = `${t.animMethodCalc}: ${duration}s / ${delay}s = ${frames} ${t.tzFrames}`;
-        }
-
-        animComplexity = sprite.animComplexity || 'simple';
-        animPoints = animComplexity === 'complex' ? 10 : animComplexity === 'medium' ? 5 : 0;
-        
-        // Dynamic frame multiplier based on sprite quality and animation complexity
-        let frameMultiplier = 1;
-        if (detailLevel === 'simple') {
-          frameMultiplier = animComplexity === 'complex' ? 0.75 : animComplexity === 'medium' ? 0.5 : 0.25;
-        } else if (detailLevel === 'moderate') {
-          frameMultiplier = animComplexity === 'complex' ? 1.5 : animComplexity === 'medium' ? 1.0 : 0.75;
-        } else { // detailed
-          frameMultiplier = animComplexity === 'complex' ? 2.0 : animComplexity === 'medium' ? 1.5 : 1.0;
-        }
-        
-        framePoints = Math.round(frames * frameMultiplier);
-        (sprite as any).calculatedFrameMultiplier = frameMultiplier; // Store for log
+    if (sprite.hasAnimation && cat.supportsAnimation) {
+      if (sprite.frameMode === 'direct') {
+        frames = Math.max(1, sprite.framesDirect);
+        animModeLogText = `${t.animMethodDirect}: ${frames} ${t.tzFrames}`;
+      } else {
+        const duration = sprite.animDuration || 0.1;
+        const delay = Math.max(0.01, sprite.animDelay || 0.1);
+        frames = Math.max(1, Math.round(duration / delay));
+        animModeLogText = `${t.animMethodCalc}: ${duration}s / ${delay}s = ${frames} ${t.tzFrames}`;
       }
 
-      baseGeneralComplexity = detailPoints + animPoints + framePoints;
+      animComplexity = sprite.animComplexity || 'simple';
+      animPoints = 0;
       
-      let generalMultiplier = 1.0;
-      if (designMode === 'scratch') generalMultiplier += 0.5;
-      if (isometry) generalMultiplier += 0.5;
-      generalComplexity = Math.round(baseGeneralComplexity * generalMultiplier);
+      const ratePerFrame = animComplexity === 'complex' ? 1.0 : animComplexity === 'medium' ? 0.5 : 0.25;
+      framePoints = Math.floor(frames * ratePerFrame);
+      (sprite as any).calculatedFrameMultiplier = ratePerFrame; // Store rate for log
     }
+
+    detailLevel = sprite.detailLevel || (sprite.quality === 'best' ? 'detailed' : sprite.quality === 'medium' ? 'moderate' : 'simple');
+    const detailPoints = getQualityPoints(sprite.categoryId, detailLevel);
+
+    baseGeneralComplexity = detailPoints + animPoints + framePoints;
+    
+    let generalMultiplier = 1.0;
+    if (styleMode === 'specific') generalMultiplier += 0.25;
+    if (isometry && sprite.categoryId !== '7') generalMultiplier += 0.5;
+    generalComplexity = Math.round(baseGeneralComplexity * generalMultiplier);
 
     let dimensionalComplexity = 0;
     let step = 16;
@@ -1559,45 +1559,32 @@ export default function App() {
 
     const baseTotalComplexity = baseGeneralComplexity + dimensionalComplexity;
     let totalComplexityMultiplier = 1.0;
-    if (sprite.categoryId !== '7') {
-      if (designMode === 'scratch') totalComplexityMultiplier += 0.5;
-      if (isometry) totalComplexityMultiplier += 0.5;
-    }
-    const totalComplexity = sprite.categoryId === '7' ? 0 : Math.round(baseTotalComplexity * totalComplexityMultiplier);
+    if (styleMode === 'specific') totalComplexityMultiplier += 0.25;
+    if (isometry && sprite.categoryId !== '7') totalComplexityMultiplier += 0.5;
+    const totalComplexity = Math.round(baseTotalComplexity * totalComplexityMultiplier);
     const isImpossible = totalComplexity > 100;
     
-    // Each complexity point (quality bracket) adds progressive percentages:
-    // 0-10: +10% per point
-    // 10-20: +15% per point
-    // 20-30: +20% per point
-    // 30-40: +25% per point
-    // 40-50: +30% per point
-    // 50+: +35% per point
-    let animatedSinglePrice = baseCalculatedPrice;
-    if (sprite.categoryId !== '7') {
-      let surchargePercent = 0;
-      if (totalComplexity <= 10) {
-        surchargePercent = totalComplexity * 0.10;
-      } else if (totalComplexity <= 20) {
-        surchargePercent = (10 * 0.10) + (totalComplexity - 10) * 0.15;
-      } else if (totalComplexity <= 30) {
-        surchargePercent = (10 * 0.10) + (10 * 0.15) + (totalComplexity - 20) * 0.20;
-      } else if (totalComplexity <= 40) {
-        surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (totalComplexity - 30) * 0.25;
-      } else if (totalComplexity <= 50) {
-        surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (10 * 0.25) + (totalComplexity - 40) * 0.30;
-      } else if (totalComplexity <= 100) {
-        surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (10 * 0.25) + (10 * 0.30) + (totalComplexity - 50) * 0.35;
-      } else {
-        surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (10 * 0.25) + (10 * 0.30) + (50 * 0.35) + (totalComplexity - 100) * 1.00;
-      }
-      animatedSinglePrice = Math.round(baseCalculatedPrice * (1 + surchargePercent));
+    // Each complexity point adds progressive surcharge percentage to baseCalculatedPrice:
+    let surchargePercent = 0;
+    if (totalComplexity <= 10) {
+      surchargePercent = totalComplexity * 0.10;
+    } else if (totalComplexity <= 20) {
+      surchargePercent = (10 * 0.10) + (totalComplexity - 10) * 0.15;
+    } else if (totalComplexity <= 30) {
+      surchargePercent = (10 * 0.10) + (10 * 0.15) + (totalComplexity - 20) * 0.20;
+    } else if (totalComplexity <= 40) {
+      surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (totalComplexity - 30) * 0.25;
+    } else if (totalComplexity <= 50) {
+      surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (10 * 0.25) + (totalComplexity - 40) * 0.30;
+    } else if (totalComplexity <= 100) {
+      surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (10 * 0.25) + (10 * 0.30) + (totalComplexity - 50) * 0.35;
+    } else {
+      surchargePercent = (10 * 0.10) + (10 * 0.15) + (10 * 0.20) + (10 * 0.25) + (10 * 0.30) + (50 * 0.35) + (totalComplexity - 100) * 1.00;
     }
+    
+    let animatedSinglePrice = Math.round(baseCalculatedPrice * (1 + surchargePercent));
 
     // Dynamic size limit surcharge:
-    // If resolution exceeds cat.maxBaseSize by 1px -> +0.5%
-    // If resolution exceeds cat.maxBaseSize by 100px -> +40%
-    // Up to +50% max surcharge
     let sizeSurplusModifier = 1.0;
     if (sprite.categoryId !== '7' && cat.maxBaseSize) {
       const maxDim = Math.max(sprite.width, sprite.height);
@@ -1617,6 +1604,11 @@ export default function App() {
 
     if (sizeSurplusModifier > 1.0) {
       animatedSinglePrice = Math.round(animatedSinglePrice * sizeSurplusModifier);
+    }
+
+    // Design mode surcharge (+25% to price if scratch):
+    if (designMode === 'scratch') {
+      animatedSinglePrice = Math.round(animatedSinglePrice * 1.25);
     }
 
     // Variant calculation (50% value of full animated cost)
@@ -1644,11 +1636,18 @@ export default function App() {
       countOrig: sprite.countOrig,
       countVar: sprite.countVar,
       description: sprite.description.trim(),
+      categoryId: sprite.categoryId,
+      skinType: sprite.skinType,
+      hasAnimation: sprite.hasAnimation && cat.supportsAnimation,
+      detailPoints,
+      animPoints,
+      framePoints,
+      surchargePercentPercent: Math.round(surchargePercent * 100),
       generalComplexity,
       dimensionalComplexity,
       totalComplexity,
-      baseGeneralComplexity: sprite.categoryId === '7' ? 0 : baseGeneralComplexity,
-      baseTotalComplexity: sprite.categoryId === '7' ? 0 : baseTotalComplexity,
+      baseGeneralComplexity,
+      baseTotalComplexity,
       totalComplexityMultiplier,
       isImpossible,
       complexityStep: step,
@@ -1656,6 +1655,8 @@ export default function App() {
       detailLevel,
       animComplexity,
       designMode,
+      styleMode,
+      styleName,
       isometry,
       quality: sprite.quality || 'optimal',
       qualitySurchargePercent: 0
@@ -1776,10 +1777,10 @@ export default function App() {
         itemLog += `     - Detail Level: ${detailLabel}\n`;
         
         if (s.hasAnimation) {
-          const animLvlLabel = res.animComplexity === 'complex' ? 'Complex (+10)' : res.animComplexity === 'medium' ? 'Medium (+5)' : 'Simple (0)';
-          const frameMult = (s as any).calculatedFrameMultiplier || (res.animComplexity === 'complex' ? 2 : res.animComplexity === 'medium' ? 1.5 : 1);
+          const animRate = (s as any).calculatedFrameMultiplier || (res.animComplexity === 'complex' ? 1.0 : res.animComplexity === 'medium' ? 0.5 : 0.25);
+          const animLvlLabel = res.animComplexity === 'complex' ? 'Complex (1.0 pt/frame)' : res.animComplexity === 'medium' ? 'Medium (0.5 pt/frame)' : 'Simple (0.25 pt/frame)';
           itemLog += `     - Animation Style: ${animLvlLabel}\n`;
-          itemLog += `     - Frame count: ${res.frames} frames × ${frameMult} = +${Math.round(res.frames * frameMult)}\n`;
+          itemLog += `     - Frame count score: ${res.frames} frames × ${animRate} = +${Math.round(res.frames * animRate)} pts\n`;
         }
         
         itemLog += `   • Dimensional Complexity: sqrt(${s.width}×${s.height}) = ${res.sizeFactor} px size factor\n`;
@@ -1789,15 +1790,18 @@ export default function App() {
         itemLog += `   • Base Total Complexity: ${res.baseGeneralComplexity} + ${res.dimensionalComplexity} = ${res.baseTotalComplexity}\n`;
         
         let multText = '1.0 (Standard)';
-        if (res.designMode === 'scratch' && res.isometry) {
-          multText = '2.0 (+50% from scratch design, +50% isometric view)';
-        } else if (res.designMode === 'scratch') {
-          multText = '1.5 (+50% from scratch design)';
+        if (res.styleMode === 'specific' && res.isometry) {
+          multText = `1.75 (+25% specific style${res.styleName ? `: ${res.styleName}` : ''}, +50% volumetric perspective)`;
+        } else if (res.styleMode === 'specific') {
+          multText = `1.25 (+25% specific style${res.styleName ? `: ${res.styleName}` : ''})`;
         } else if (res.isometry) {
-          multText = '1.5 (+50% isometric view)';
+          multText = '1.5 (+50% volumetric perspective)';
         }
         itemLog += `   • Complexity Multiplier: ${multText}\n`;
         itemLog += `   • Total Complexity: Math.round(${res.baseTotalComplexity} * ${res.totalComplexityMultiplier}) = ${res.totalComplexity} (${res.complexityCategory})\n`;
+        if (res.designMode === 'scratch') {
+          itemLog += `   • Наценка за разработку дизайна с нуля: +25% к итоговой стоимости ассета\n`;
+        }
         
         if (res.totalComplexity <= 100) {
           const surchargePct = Math.round((res.animatedSinglePrice / baseCategoryPrice - 1) * 100);
@@ -2324,12 +2328,16 @@ export default function App() {
 
     orderCalculations.rawItems.forEach(item => {
       const designModeLabel = item.designMode === 'scratch'
-        ? (isRu ? 'С нуля (+50% к сложности)' : 'From Scratch (+50% multiplier)')
+        ? (isRu ? 'С нуля (+25% к цене)' : 'From Scratch (+25% price)')
         : (isRu ? 'По готовому референсу' : 'From Reference');
       
+      const styleLabel = item.styleMode === 'specific'
+        ? (isRu ? `Определённый стиль (+25% к сложности): ${item.styleName || 'Не указан'}` : `Specific Style (+25% complexity): ${item.styleName || 'Not specified'}`)
+        : (isRu ? 'Свободный стиль' : 'Free Style');
+
       const projectionLabel = item.isometry
-        ? (isRu ? 'Изометрическая проекция (+50% к сложности)' : 'Isometric Projection (+50% multiplier)')
-        : (isRu ? 'Стандартный 2D вид' : 'Standard 2D View');
+        ? (isRu ? 'Объёмная перспектива (+50% к сложности)' : 'Volumetric Perspective (+50% multiplier)')
+        : (isRu ? '2D Перспектива' : '2D Perspective');
 
       const detailLabel = item.detailLevel === 'detailed' 
         ? (isRu ? 'Высокая (Detailed)' : 'High (Detailed)')
@@ -2341,6 +2349,7 @@ export default function App() {
       tzText += `  • ${isRu ? 'ТЗ / Описание' : 'Task Description'}: ${item.description}\n`;
       tzText += `  • ${isRu ? 'Разрешение' : 'Resolution'}: ${item.sizeInfo}\n`;
       tzText += `  • ${isRu ? 'Разработка' : 'Design Mode'}: ${designModeLabel}\n`;
+      tzText += `  • ${isRu ? 'Стилистика' : 'Style'}: ${styleLabel}\n`;
       tzText += `  • ${isRu ? 'Проекция' : 'Projection'}: ${projectionLabel}\n`;
       tzText += `  • ${isRu ? 'Детализация' : 'Detail Level'}: ${detailLabel}\n`;
       tzText += `  • ${isRu ? 'Сложность' : 'Complexity'}: ${item.complexityCategory} (${item.totalComplexity} pts, ×${item.totalComplexityMultiplier})\n`;
@@ -3073,12 +3082,17 @@ export default function App() {
                               </span>
                               {sprite.designMode === 'scratch' && (
                                 <span className="px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-500/30 text-xs uppercase font-bold shrink-0">
-                                  0
+                                  {lang === 'ru' ? 'С нуля' : 'Scratch'}
+                                </span>
+                              )}
+                              {sprite.styleMode === 'specific' && (
+                                <span className="px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-500/30 text-xs uppercase font-bold shrink-0">
+                                  {lang === 'ru' ? 'Стиль' : 'Style'}
                                 </span>
                               )}
                               {sprite.isometry && (
                                 <span className="px-1.5 py-0.5 rounded bg-fuchsia-950/80 text-fuchsia-300 border border-fuchsia-500/30 text-xs uppercase font-bold shrink-0">
-                                  3D
+                                  {lang === 'ru' ? 'Перспектива' : 'Perspective'}
                                 </span>
                               )}
                             </div>
@@ -3698,11 +3712,14 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Design & Isometry Complexity Options (Moved to Column 3 for optimal balanced visual layout) */}
-                        {sprite.categoryId !== '7' && (
-                          <div className="pt-1 space-y-3">
-                            <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
-                              {/* Design Creation Card */}
+                        {/* Design, Style & Perspective Options (Column 3) */}
+                        <div className="pt-2 space-y-2.5">
+                            <label className="block text-xs font-black uppercase tracking-wider text-[#ebd6f7]/80">
+                              {lang === 'ru' ? 'Спецификация и ракурс:' : 'Spec & Projection:'}
+                            </label>
+
+                            <div className="grid grid-cols-1 gap-2.5 w-full">
+                              {/* 1. Design Creation Card */}
                               <div
                                 role="button"
                                 tabIndex={0}
@@ -3713,121 +3730,202 @@ export default function App() {
                                     updateSpriteField(sprite.id, 'designMode', sprite.designMode === 'scratch' ? 'reference' : 'scratch');
                                   }
                                 }}
-                                className="bg-[#12051d]/40 backdrop-blur-md border border-[#3d1956] rounded-2xl p-2.5 sm:p-4 transition-all duration-300 hover:border-purple-500/50 hover:bg-[#180727]/50 relative overflow-hidden flex flex-col justify-between min-h-[96px] sm:min-h-[110px] cursor-pointer active:scale-[0.99] select-none text-left"
+                                className={`bg-[#12051d]/60 backdrop-blur-md border rounded-xl p-3 transition-all duration-200 hover:bg-[#180727] relative overflow-hidden flex items-center justify-between cursor-pointer active:scale-[0.99] select-none text-left ${
+                                  sprite.designMode === 'scratch' ? 'border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.15)]' : 'border-[#3d1956] hover:border-purple-500/40'
+                                }`}
                               >
-                                <div className="flex items-start justify-between gap-1.5 sm:gap-2">
-                                  <div className="space-y-0.5 sm:space-y-1 min-w-0">
-                                    <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-                                      <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-purple-300">
-                                        {lang === 'ru' ? 'Дизайн' : 'Design'}
+                                <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDesignHelp(prev => ({ ...prev, [sprite.id]: !prev[sprite.id] }));
+                                    }}
+                                    className="w-6 h-6 rounded-full bg-[#270d3c] hover:bg-purple-800/80 border border-purple-400/50 text-purple-200 hover:text-white flex items-center justify-center text-xs font-black transition-all cursor-pointer select-none shrink-0"
+                                    title={lang === 'ru' ? 'Справка' : 'Help'}
+                                  >
+                                    i
+                                  </button>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-xs font-black uppercase tracking-wider text-purple-200">
+                                      {lang === 'ru' ? 'Дизайн' : 'Design'}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                      <span className="text-xs text-[#ebd6f7]/80 font-medium">
+                                        {sprite.designMode === 'scratch' ? (lang === 'ru' ? 'С нуля' : 'Scratch') : (lang === 'ru' ? 'По референсу' : 'From Reference')}
                                       </span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setDesignHelp(prev => ({ ...prev, [sprite.id]: !prev[sprite.id] }));
-                                        }}
-                                        className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-[#270d3c] hover:bg-purple-800/80 border-2 border-purple-400/50 hover:border-purple-300 text-purple-200 hover:text-white flex items-center justify-center text-xs sm:text-sm font-black transition-all hover:scale-110 active:scale-95 cursor-pointer select-none shrink-0 shadow-md"
-                                        title={lang === 'ru' ? 'Справка' : 'Help'}
-                                      >
-                                        i
-                                      </button>
+                                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                        sprite.designMode === 'scratch' ? 'bg-amber-950/80 text-amber-300 border border-amber-500/40' : 'bg-stone-900/60 text-stone-400 border border-stone-700/40'
+                                      }`}>
+                                        {sprite.designMode === 'scratch' ? '+25% к цене' : '0%'}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="mt-2 sm:mt-3.5 pt-1.5 sm:pt-2.5 border-t border-purple-500/5 flex items-center justify-between text-xs sm:text-sm font-mono">
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="text-[#ebd6f7]/40 uppercase tracking-wider font-bold truncate max-w-[70px] sm:max-w-none">
-                                      {sprite.designMode === 'scratch' ? (lang === 'ru' ? 'С нуля' : 'From Scratch') : (lang === 'ru' ? 'Референс' : 'Reference')}
-                                    </span>
-                                    <span className={`font-black shrink-0 ${sprite.designMode === 'scratch' ? 'text-purple-400' : 'text-stone-500'}`}>
-                                      {sprite.designMode === 'scratch' ? '+50%' : '0%'}
-                                    </span>
-                                  </div>
-
-                                  {/* Custom Switch Toggle */}
+                                {/* Toggle Switch */}
+                                <div
+                                  className={`relative w-10 h-6 rounded-full transition-all duration-300 shrink-0 ${
+                                    sprite.designMode === 'scratch'
+                                      ? 'bg-amber-600 shadow-[0_0_10px_rgba(217,119,6,0.5)]'
+                                      : 'bg-[#0f0418] border border-purple-500/20'
+                                  }`}
+                                >
                                   <div
-                                    className={`relative w-10 h-5 sm:w-12 sm:h-7 rounded-full transition-all duration-300 shrink-0 ${
-                                      sprite.designMode === 'scratch'
-                                        ? 'bg-purple-600 shadow-[0_0_12px_rgba(147,51,234,0.5)]'
-                                        : 'bg-[#0f0418] border border-purple-500/15'
+                                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-300 shadow-md ${
+                                      sprite.designMode === 'scratch' ? 'translate-x-4' : 'translate-x-0'
                                     }`}
-                                  >
-                                    <div
-                                      className={`absolute top-0.5 left-0.5 w-4 h-4 sm:w-6 sm:h-6 rounded-full bg-white transition-transform duration-300 shadow-md ${
-                                        sprite.designMode === 'scratch' 
-                                          ? 'translate-x-5 sm:translate-x-5' 
-                                          : 'translate-x-0'
-                                      }`}
-                                    />
-                                  </div>
+                                  />
                                 </div>
                               </div>
 
-                              {/* Isometric View Card */}
+                              {/* 2. Style Mode Card */}
                               <div
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => updateSpriteField(sprite.id, 'isometry', !sprite.isometry)}
+                                onClick={() => updateSpriteField(sprite.id, 'styleMode', sprite.styleMode === 'specific' ? 'free' : 'specific')}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' || e.key === ' ') {
                                     e.preventDefault();
-                                    updateSpriteField(sprite.id, 'isometry', !sprite.isometry);
+                                    updateSpriteField(sprite.id, 'styleMode', sprite.styleMode === 'specific' ? 'free' : 'specific');
                                   }
                                 }}
-                                className="bg-[#12051d]/40 backdrop-blur-md border border-[#3d1956] rounded-2xl p-2.5 sm:p-4 transition-all duration-300 hover:border-purple-500/50 hover:bg-[#180727]/50 relative overflow-hidden flex flex-col justify-between min-h-[96px] sm:min-h-[110px] cursor-pointer active:scale-[0.99] select-none text-left"
+                                className={`bg-[#12051d]/60 backdrop-blur-md border rounded-xl p-3 transition-all duration-200 hover:bg-[#180727] relative overflow-hidden flex items-center justify-between cursor-pointer active:scale-[0.99] select-none text-left ${
+                                  sprite.styleMode === 'specific' ? 'border-purple-500/50 shadow-[0_0_12px_rgba(168,85,247,0.15)]' : 'border-[#3d1956] hover:border-purple-500/40'
+                                }`}
                               >
-                                <div className="flex items-start justify-between gap-1.5 sm:gap-2">
-                                  <div className="space-y-0.5 sm:space-y-1 min-w-0">
-                                    <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-                                      <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-purple-300">
-                                        {lang === 'ru' ? 'Изометрия' : 'Isometry'}
+                                <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setStyleHelp(prev => ({ ...prev, [sprite.id]: !prev[sprite.id] }));
+                                    }}
+                                    className="w-6 h-6 rounded-full bg-[#270d3c] hover:bg-purple-800/80 border border-purple-400/50 text-purple-200 hover:text-white flex items-center justify-center text-xs font-black transition-all cursor-pointer select-none shrink-0"
+                                    title={lang === 'ru' ? 'Справка' : 'Help'}
+                                  >
+                                    i
+                                  </button>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-xs font-black uppercase tracking-wider text-purple-200">
+                                      {lang === 'ru' ? 'Стилистика' : 'Style Mode'}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                      <span className="text-xs text-[#ebd6f7]/80 font-medium">
+                                        {sprite.styleMode === 'specific' ? (lang === 'ru' ? 'Определённый' : 'Specific') : (lang === 'ru' ? 'Свободный' : 'Free')}
                                       </span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setIsometryHelp(prev => ({ ...prev, [sprite.id]: !prev[sprite.id] }));
-                                        }}
-                                        className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-[#270d3c] hover:bg-purple-800/80 border-2 border-purple-400/50 hover:border-purple-300 text-purple-200 hover:text-white flex items-center justify-center text-xs sm:text-sm font-black transition-all hover:scale-110 active:scale-95 cursor-pointer select-none shrink-0 shadow-md"
-                                        title={lang === 'ru' ? 'Справка' : 'Help'}
-                                      >
-                                        i
-                                      </button>
+                                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                        sprite.styleMode === 'specific' ? 'bg-purple-950/80 text-purple-300 border border-purple-500/40' : 'bg-stone-900/60 text-stone-400 border border-stone-700/40'
+                                      }`}>
+                                        {sprite.styleMode === 'specific' ? '+25% сложн.' : '0%'}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="mt-2 sm:mt-3.5 pt-1.5 sm:pt-2.5 border-t border-purple-500/5 flex items-center justify-between text-xs sm:text-sm font-mono">
-                                  <div className="flex flex-col gap-0.5">
-                                    <span className="text-[#ebd6f7]/40 uppercase tracking-wider font-bold truncate max-w-[70px] sm:max-w-none">
-                                      {sprite.isometry ? (lang === 'ru' ? 'Изо: Да' : 'Iso: Yes') : (lang === 'ru' ? 'Изо: Нет' : 'Iso: No')}
-                                    </span>
-                                    <span className={`font-black shrink-0 ${sprite.isometry ? 'text-purple-400' : 'text-stone-500'}`}>
-                                      {sprite.isometry ? '+50%' : '0%'}
-                                    </span>
+                                {/* Toggle Switch */}
+                                <div
+                                  className={`relative w-10 h-6 rounded-full transition-all duration-300 shrink-0 ${
+                                    sprite.styleMode === 'specific'
+                                      ? 'bg-purple-600 shadow-[0_0_10px_rgba(147,51,234,0.5)]'
+                                      : 'bg-[#0f0418] border border-purple-500/20'
+                                  }`}
+                                >
+                                  <div
+                                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-300 shadow-md ${
+                                      sprite.styleMode === 'specific' ? 'translate-x-4' : 'translate-x-0'
+                                    }`}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* 3. Perspective View Card (Not shown for Minecraft Skins as they are natively 3D) */}
+                              {sprite.categoryId !== '7' && (
+                                <div
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={() => updateSpriteField(sprite.id, 'isometry', !sprite.isometry)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      updateSpriteField(sprite.id, 'isometry', !sprite.isometry);
+                                    }
+                                  }}
+                                  className={`bg-[#12051d]/60 backdrop-blur-md border rounded-xl p-3 transition-all duration-200 hover:bg-[#180727] relative overflow-hidden flex items-center justify-between cursor-pointer active:scale-[0.99] select-none text-left ${
+                                    sprite.isometry ? 'border-fuchsia-500/50 shadow-[0_0_12px_rgba(217,70,239,0.15)]' : 'border-[#3d1956] hover:border-purple-500/40'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsometryHelp(prev => ({ ...prev, [sprite.id]: !prev[sprite.id] }));
+                                      }}
+                                      className="w-6 h-6 rounded-full bg-[#270d3c] hover:bg-purple-800/80 border border-purple-400/50 text-purple-200 hover:text-white flex items-center justify-center text-xs font-black transition-all cursor-pointer select-none shrink-0"
+                                      title={lang === 'ru' ? 'Справка' : 'Help'}
+                                    >
+                                      i
+                                    </button>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-xs font-black uppercase tracking-wider text-purple-200">
+                                        {lang === 'ru' ? 'Перспектива' : 'Perspective'}
+                                      </span>
+                                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                        <span className="text-xs text-[#ebd6f7]/80 font-medium">
+                                          {sprite.isometry ? (lang === 'ru' ? 'Объёмная (3D / Изометрия)' : 'Volumetric (3D / Iso)') : (lang === 'ru' ? '2D (Плоская)' : '2D (Flat)')}
+                                        </span>
+                                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                          sprite.isometry ? 'bg-fuchsia-950/80 text-fuchsia-300 border border-fuchsia-500/40' : 'bg-stone-900/60 text-stone-400 border border-stone-700/40'
+                                        }`}>
+                                          {sprite.isometry ? '+50% сложн.' : '0%'}
+                                        </span>
+                                      </div>
+                                    </div>
                                   </div>
 
-                                  {/* Custom Switch Toggle */}
+                                  {/* Toggle Switch */}
                                   <div
-                                    className={`relative w-10 h-5 sm:w-12 sm:h-7 rounded-full transition-all duration-300 shrink-0 ${
+                                    className={`relative w-10 h-6 rounded-full transition-all duration-300 shrink-0 ${
                                       sprite.isometry
-                                        ? 'bg-purple-600 shadow-[0_0_12px_rgba(147,51,234,0.5)]'
-                                        : 'bg-[#0f0418] border border-purple-500/15'
+                                        ? 'bg-fuchsia-600 shadow-[0_0_10px_rgba(217,70,239,0.5)]'
+                                        : 'bg-[#0f0418] border border-purple-500/20'
                                     }`}
                                   >
                                     <div
-                                      className={`absolute top-0.5 left-0.5 w-4 h-4 sm:w-6 sm:h-6 rounded-full bg-white transition-transform duration-300 shadow-md ${
-                                        sprite.isometry 
-                                          ? 'translate-x-5 sm:translate-x-5' 
-                                          : 'translate-x-0'
+                                      className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-300 shadow-md ${
+                                        sprite.isometry ? 'translate-x-4' : 'translate-x-0'
                                       }`}
                                     />
                                   </div>
                                 </div>
-                              </div>
+                              )}
                             </div>
+
+                            {/* Conditional input field when Specific Style is chosen */}
+                            <AnimatePresence>
+                              {sprite.styleMode === 'specific' && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="overflow-hidden pt-1"
+                                >
+                                  <div className="bg-[#12051d]/80 backdrop-blur-md border border-purple-500/40 rounded-xl p-3 space-y-1.5 text-left">
+                                    <label className="text-xs font-extrabold uppercase tracking-wider text-purple-300 block">
+                                      {lang === 'ru' ? 'Желаемый стиль спрайта:' : 'Desired Sprite Style:'}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={sprite.styleName || ''}
+                                      onChange={(e) => updateSpriteField(sprite.id, 'styleName', e.target.value)}
+                                      placeholder={lang === 'ru' ? 'Укажите стиль (напр. Cyberpunk, Pixel Dark Fantasy, GameBoy 4-color)...' : 'Specify style (e.g. Cyberpunk, Pixel Dark Fantasy, 16-bit JRPG)...'}
+                                      className="w-full bg-[#0a0212] border border-[#3d1a56] focus:border-purple-400 rounded-lg px-3 py-2 text-xs sm:text-sm text-purple-100 placeholder-purple-400/40 focus:outline-none transition-all font-sans shadow-inner"
+                                    />
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
 
                             {/* Design creation help popover */}
                             <AnimatePresence>
@@ -3836,35 +3934,56 @@ export default function App() {
                                   initial={{ opacity: 0, height: 0 }}
                                   animate={{ opacity: 1, height: 'auto' }}
                                   exit={{ opacity: 0, height: 0 }}
-                                  className="mt-2 bg-[#12051d]/90 rounded-xl p-3 border border-purple-500/20 text-xs sm:text-sm space-y-2 overflow-hidden text-[#ebd6f7]/90 leading-relaxed shadow-lg text-left"
+                                  className="mt-2 bg-[#12051d]/95 rounded-xl p-3 border border-amber-500/30 text-xs sm:text-sm space-y-2 overflow-hidden text-[#ebd6f7]/90 leading-relaxed shadow-lg text-left"
                                 >
                                   <div>
-                                    <strong className="text-purple-300">{lang === 'ru' ? 'По референсу:' : 'From Reference:'}</strong> {lang === 'ru' ? 'Художник работает по вашему готовому эскизу, скриншоту или подробному референсу.' : 'The artist works based on your ready concept art, sketch, or visual references.'}
+                                    <strong className="text-purple-300">{lang === 'ru' ? 'По референсу (0%):' : 'From Reference (0%):'}</strong> {lang === 'ru' ? 'Работа по готовому эскизу, скетчу или макету.' : 'Artist works from your existing sketch or reference.'}
                                   </div>
                                   <div>
-                                    <strong className="text-indigo-400">{lang === 'ru' ? 'С нуля (+50% сложности):' : 'From Scratch (+50% complexity):'}</strong> {lang === 'ru' ? 'Разработка концепта и дизайна художником полностью с нуля по вашему текстовому описанию.' : 'Concept and visual design created entirely from scratch based on your text ideas.'}
+                                    <strong className="text-amber-400">{lang === 'ru' ? 'С нуля (+25% к цене):' : 'From Scratch (+25% price):'}</strong> {lang === 'ru' ? 'Разработка чистого концепт-арта и внешнего вида с нуля по вашему описанию (+25% к итоговой стоимости ассета).' : 'Developing character/object design completely from scratch based on text description (+25% to price).'}
                                   </div>
                                 </motion.div>
                               )}
                             </AnimatePresence>
 
-                            {/* Isometry help popover */}
+                            {/* Style mode help popover */}
+                            <AnimatePresence>
+                              {styleHelp[sprite.id] && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="mt-2 bg-[#12051d]/95 rounded-xl p-3 border border-purple-500/30 text-xs sm:text-sm space-y-2 overflow-hidden text-[#ebd6f7]/90 leading-relaxed shadow-lg text-left"
+                                >
+                                  <div>
+                                    <strong className="text-purple-300">{lang === 'ru' ? 'Свободный стиль (0%):' : 'Free Style (0%):'}</strong> {lang === 'ru' ? 'Свободный выбор палитры без инструкций.' : 'Free palette selection without instructions.'}
+                                  </div>
+                                  <div>
+                                    <strong className="text-purple-400">{lang === 'ru' ? 'Определённый стиль (+25% к сложности):' : 'Specific Style (+25% complexity):'}</strong> {lang === 'ru' ? 'Следование строго заданному художественному стилю (например, Cyberpunk, Metal Slug, Retro GameBoy) с заполнением наименования (+25% к сложности).' : 'Adhering strictly to a user-defined style standard with text specification (+25% to complexity score).'}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {/* Perspective help popover */}
                             <AnimatePresence>
                               {isometryHelp[sprite.id] && (
                                 <motion.div
                                   initial={{ opacity: 0, height: 0 }}
                                   animate={{ opacity: 1, height: 'auto' }}
                                   exit={{ opacity: 0, height: 0 }}
-                                  className="mt-2 bg-[#12051d]/90 rounded-xl p-3 border border-purple-500/20 text-xs sm:text-sm overflow-hidden text-[#ebd6f7]/90 leading-relaxed shadow-lg text-left"
+                                  className="mt-2 bg-[#12051d]/95 rounded-xl p-3 border border-fuchsia-500/30 text-xs sm:text-sm space-y-2 overflow-hidden text-[#ebd6f7]/90 leading-relaxed shadow-lg text-left"
                                 >
-                                  {lang === 'ru' 
-                                    ? 'Активируйте для построения 2.5D проекции (диагональный вид). Дает +50% к сложности из-за необходимости точной стыковки пикселей под углом 26.565° и сложного трехмерного затенения сторон.' 
-                                    : 'Activate for 2.5D projection (diagonal perspective). Adds +50% complexity due to precise pixel alignment at 26.565° and complex 3D-like shading of multiple sides.'}
+                                  <div>
+                                    <strong className="text-purple-300">{lang === 'ru' ? '2D Перспектива (0%):' : '2D Perspective (0%):'}</strong> {lang === 'ru' ? 'Прямой плоский вид сбоку или сверху (Side-scroller / Top-down / Front view).' : 'Direct flat side-scroller, top-down, or front view.'}
+                                  </div>
+                                  <div>
+                                    <strong className="text-fuchsia-400">{lang === 'ru' ? 'Объёмная перспектива (+50% к сложности):' : 'Volumetric Perspective (+50% complexity):'}</strong> {lang === 'ru' ? 'Построение объёма в пространстве — изометрический ракурс (2.5D) или полноценный 3D арт с трёхмерным затенением, глубиной и перспективой граней (+50% к сложности).' : 'Building volume in space — isometric projection (2.5D) or full 3D art with three-dimensional shading, depth, and spatial perspective (+50% complexity).'}
+                                  </div>
                                 </motion.div>
                               )}
                             </AnimatePresence>
                           </div>
-                        )}
 
                         {/* Sprite Complexity Options */}
                         {sprite.categoryId === '7' && (
@@ -3928,6 +4047,8 @@ export default function App() {
                                   onChange={(val) => updateSpriteField(sprite.id, 'animComplexity', val)}
                                   lang={lang}
                                   spriteId={sprite.id}
+                                  frames={calculated.frames}
+                                  totalComplexity={calculated.totalComplexity}
                                 />
 
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-[#3d1a56]/50">
@@ -4066,26 +4187,22 @@ export default function App() {
                     )}
 
                     {/* Complexity selection moved before description and styled to fit the site style */}
-                    {sprite.categoryId !== '7' && (
-                      <div className="mt-5 pt-4 border-t border-[#ebd6f7]/10">
-                        <ComplexitySelection
-                          value={sprite.detailLevel || 'simple'}
-                          onChange={(val) => updateSpriteField(sprite.id, 'detailLevel', val)}
-                          lang={lang}
-                          spriteId={sprite.id}
-                          categoryId={sprite.categoryId}
-                        />
-                      </div>
-                    )}
+                    <div className="mt-5 pt-4 border-t border-[#ebd6f7]/10">
+                      <ComplexitySelection
+                        value={sprite.detailLevel || 'simple'}
+                        onChange={(val) => updateSpriteField(sprite.id, 'detailLevel', val)}
+                        lang={lang}
+                        spriteId={sprite.id}
+                        categoryId={sprite.categoryId}
+                      />
+                    </div>
 
                     {/* Sprite Complexity Progress Bar (Positioned BEFORE description) */}
-                    {sprite.categoryId !== '7' && (
-                      <TotalComplexityCard
-                        calculated={calculated}
-                        sprite={sprite}
-                        lang={lang}
-                      />
-                    )}
+                    <TotalComplexityCard
+                      calculated={calculated}
+                      sprite={sprite}
+                      lang={lang}
+                    />
 
                     {/* Task Description input (Mandatory) */}
                     <div className="mt-5 pt-4 border-t border-[#ebd6f7]/10">
@@ -4829,13 +4946,19 @@ export default function App() {
                                     <div className="flex justify-between items-center">
                                       <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Разработка:' : 'Design:'}</span>
                                       <span className={`font-bold px-1.5 py-0.5 rounded text-xs ${item.designMode === 'scratch' ? 'text-amber-300 bg-amber-950/60 border border-amber-500/30' : 'text-stone-300'}`}>
-                                        {item.designMode === 'scratch' ? (lang === 'ru' ? 'С нуля (+50%)' : 'Scratch (+50%)') : (lang === 'ru' ? 'По рефереру' : 'Reference')}
+                                        {item.designMode === 'scratch' ? (lang === 'ru' ? 'С нуля (+25% к цене)' : 'Scratch (+25% price)') : (lang === 'ru' ? 'По референсу' : 'Reference')}
                                       </span>
                                     </div>
                                     <div className="flex justify-between items-center">
-                                      <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Проекция:' : 'Projection:'}</span>
-                                      <span className={`font-bold px-1.5 py-0.5 rounded text-xs ${item.isometry ? 'text-purple-300 bg-purple-900/60 border border-purple-500/30' : 'text-stone-300'}`}>
-                                        {item.isometry ? (lang === 'ru' ? 'Изометрия (+50%)' : 'Isometric (+50%)') : (lang === 'ru' ? '2D Вид' : '2D View')}
+                                      <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Стилистика:' : 'Style:'}</span>
+                                      <span className={`font-bold px-1.5 py-0.5 rounded text-xs ${item.styleMode === 'specific' ? 'text-purple-300 bg-purple-900/60 border border-purple-500/30' : 'text-stone-300'}`}>
+                                        {item.styleMode === 'specific' ? (lang === 'ru' ? `Стиль: ${item.styleName || 'Определённый'} (+25% сложн.)` : `Style: ${item.styleName || 'Specific'} (+25% comp.)`) : (lang === 'ru' ? 'Свободный' : 'Free')}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[#ebd6f7]/60">{lang === 'ru' ? 'Перспектива:' : 'Perspective:'}</span>
+                                      <span className={`font-bold px-1.5 py-0.5 rounded text-xs ${item.isometry ? 'text-fuchsia-300 bg-fuchsia-900/60 border border-fuchsia-500/30' : 'text-stone-300'}`}>
+                                        {item.isometry ? (lang === 'ru' ? 'Объёмная (+50% сложн.)' : 'Volumetric (+50% comp.)') : (lang === 'ru' ? '2D (Плоская)' : '2D (Flat)')}
                                       </span>
                                     </div>
                                     <div className="flex justify-between items-center">

@@ -50,6 +50,8 @@ export interface SpriteItemState {
   detailLevel?: 'simple' | 'moderate' | 'detailed';
   animComplexity?: 'simple' | 'medium' | 'complex';
   designMode?: 'reference' | 'scratch';
+  styleMode?: 'free' | 'specific';
+  styleName?: string;
 }
 
 export const CATEGORIES_LIST: CategoryData[] = [
@@ -309,27 +311,27 @@ export const CATEGORIES_LIST: CategoryData[] = [
       'Custom Skins: Bespoke skins built completely from scratch based on descriptions, mood boards, or artwork.',
       'Skins Modifications: Seasonal or theme changes to existing skins (adding hats, alternative outfits, armor, or capes).'
     ],
-    basePrice: 400,
+    basePrice: 200,
     pixelPrice: 0,
     maxBaseSize: 512,
-    minBaseSize: 0,
-    supportsAnimation: false,
+    minBaseSize: 16,
+    supportsAnimation: true,
     useCasesRu: ['Скины игроков (64x64 / 128x128)', 'Скины мобов'],
     useCasesEn: ['Player Skins (64x64 / 128x128)', 'Mob textures'],
-    formulaHelpRu: 'Стандартный скин: 400 ₽. HD скин: 800 ₽.',
-    formulaHelpEn: 'Standard Skin: 400 ₽. HD Skin: 800 ₽.',
+    formulaHelpRu: 'Базовая ставка 200 ₽ (64x64) / 400 ₽ (128x128 HD) + Сложность спрайта (+10% за уровень сложности).',
+    formulaHelpEn: 'Base rate 200 ₽ (64x64) / 400 ₽ (128x128 HD) + Sprite complexity (+10% per complexity level).',
     preferredSizeRu: '64×64 / 128×128 px',
     preferredSizeEn: '64×64 / 128×128 px',
     popularResRu: '64×64 px (Стандартный скин)',
     popularResEn: '64×64 px (Standard Skin)',
-    popularPriceNum: 400,
+    popularPriceNum: 200,
     examplesRu: [
-      { size: 'Стандартный', price: '400 ₽' },
-      { size: 'HD-текстура', price: '800 ₽' }
+      { size: 'Стандартный', price: '200 ₽' },
+      { size: 'HD-текстура', price: '400 ₽' }
     ],
     examplesEn: [
-      { size: 'Standard Skin', price: '400 ₽' },
-      { size: 'HD Texture', price: '800 ₽' }
+      { size: 'Standard Skin', price: '200 ₽' },
+      { size: 'HD Texture', price: '400 ₽' }
     ],
     imagePath: '/images/cat7.gif'
   },
@@ -377,7 +379,7 @@ export function getQualityPoints(categoryId: string, level: string | undefined):
     '4': [4, 14, 28],
     '5': [6, 16, 32],
     '6': [3, 13, 26],
-    '7': [0, 0, 0],
+    '7': [0, 10, 20],
     '8': [10, 20, 30],
   };
 
