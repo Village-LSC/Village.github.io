@@ -42,6 +42,7 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
       {/* Main Trigger Button: Collapsed by Default as requested */}
       <div className="flex flex-col items-center justify-center">
         <button
+          id="tour-log-terminal"
           type="button"
           onClick={() => setIsLogOpen(prev => !prev)}
           className={`w-full max-w-2xl px-6 py-4.5 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between gap-4 cursor-pointer shadow-xl active:scale-[0.99] group ${
@@ -115,6 +116,7 @@ export function CalculationLog({ lang, orderCalculations, CATEGORIES_LIST, forma
               {/* Toggle Logic & Rules Guide Banner */}
               <div className="bg-[#1c082b] border border-[#3d1a56] rounded-2xl p-4 sm:p-5 text-xs sm:text-sm space-y-4">
                 <button
+                  id="tour-log-rules"
                   type="button"
                   onClick={() => setShowRulesExplanation(prev => !prev)}
                   className="w-full flex items-center justify-between text-left text-purple-200 font-bold hover:text-white transition-colors cursor-pointer text-sm sm:text-base"

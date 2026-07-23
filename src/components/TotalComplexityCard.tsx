@@ -177,7 +177,7 @@ export function TotalComplexityCard({ calculated, sprite, lang }: TotalComplexit
     : 'bg-[#12051d]/45 border-purple-500/20';
 
   return (
-    <div className="w-full relative">
+    <div id="tour-pts-bar" className="w-full relative">
       <style>{`
         @keyframes complexityCardPulseGlow {
           0%, 100% {
@@ -250,7 +250,7 @@ export function TotalComplexityCard({ calculated, sprite, lang }: TotalComplexit
                   </div>
                 </div>
 
-                <div className="text-left sm:text-right shrink-0">
+                <div id="tour-pts-value" className="text-left sm:text-right shrink-0">
                   <span className="font-mono font-black text-2xl text-white leading-none block drop-shadow-[0_2px_6px_rgba(0,0,0,1)]">
                     {complexity} <span className="text-xs font-bold text-purple-100">{lang === 'ru' ? 'очков' : 'pts'}</span>
                   </span>

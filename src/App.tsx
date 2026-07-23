@@ -58,6 +58,7 @@ import { ComplexitySelection } from './components/ComplexitySelection';
 import { AnimationComplexitySelection } from './components/AnimationComplexitySelection';
 import { TotalComplexityCard } from './components/TotalComplexityCard';
 import { CalculationLog } from './components/CalculationLog';
+import { InteractiveTutorial, FloatingTutorialPrompt } from './components/InteractiveTutorial';
 
 function DitherNebula({ isExpanded }: { isExpanded: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1000,6 +1001,40 @@ export default function App() {
 
   // Collapse / Expand state for the content below the header
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
+
+  // Interactive 9-Step Tutorial State
+  const [showTutorialModal, setShowTutorialModal] = useState<boolean>(false);
+  const [showFloatingTutorialPrompt, setShowFloatingTutorialPrompt] = useState<boolean>(false);
+  const [tutorialDismissed, setTutorialDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('tutorial_dismissed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // 30-Second Active Interaction Timer for Tutorial Prompt
+  const interactionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const userInteractedRef = useRef<boolean>(false);
+
+  const handleCalculatorInteraction = () => {
+    if (tutorialDismissed || showTutorialModal || showFloatingTutorialPrompt) return;
+
+    if (!userInteractedRef.current) {
+      userInteractedRef.current = true;
+      interactionTimerRef.current = setTimeout(() => {
+        setShowFloatingTutorialPrompt(true);
+      }, 30000); // 30 seconds
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (interactionTimerRef.current) {
+        clearTimeout(interactionTimerRef.current);
+      }
+    };
+  }, []);
 
   const toggleBg = () => {
     setIsBgEnabled(prev => {
@@ -2564,7 +2599,7 @@ export default function App() {
         </button>
 
         {/* Translation and Currency Toggles */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           {/* Currency Toggle */}
           <div className="flex items-center gap-2 bg-[#2d143f] rounded-xl p-1 border-2 border-[#180a24] shadow-md text-sm font-semibold">
             <button
@@ -2906,6 +2941,8 @@ export default function App() {
       <section
         id="calc-anchored-form"
         className="max-w-7xl mx-auto px-4 animate-glow"
+        onClick={handleCalculatorInteraction}
+        onMouseEnter={handleCalculatorInteraction}
       >
         <div className="bg-[#241135] text-[#fbf7ff] rounded-3xl border-4 border-[#140620] p-6 sm:p-10 shadow-[0_0_50px_rgba(192,132,252,0.15)] relative overflow-hidden transition-all duration-300 hover:border-purple-300 hover:shadow-[0_0_55px_rgba(192,132,252,0.25)]">
           {/* Inner purple highlight line */}
@@ -2924,8 +2961,18 @@ export default function App() {
               </p>
             </div>
 
-            {/* Top Right Controls: Currency selector */}
+            {/* Top Right Controls: Quick Tutorial & Currency selector */}
             <div className="flex flex-wrap items-center gap-3 relative z-10">
+              <button
+                type="button"
+                onClick={() => setShowTutorialModal(true)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 via-purple-600 to-fuchsia-600 hover:from-cyan-500 hover:to-fuchsia-500 text-white font-mono text-xs font-black uppercase tracking-wider border-2 border-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.35)] transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-2"
+                title={lang === 'ru' ? 'Интерактивное обучение по калькулятору из 9 шагов' : '9-step interactive calculator guide'}
+              >
+                <Sparkles className="w-4 h-4 text-cyan-300 animate-spin-slow shrink-0" />
+                <span>{lang === 'ru' ? 'Быстрое обучение (9 шагов)' : 'Quick Tutorial (9 Steps)'}</span>
+              </button>
+
               <div className="bg-[#12051d] px-4 py-2 rounded-xl border-2 border-[#3d1a56] flex items-center gap-3 shadow-inner">
                 <span className="text-sm font-mono tracking-wider uppercase text-[#ebd6f7]/60">
                   {t.currencySelect}
@@ -2958,6 +3005,7 @@ export default function App() {
             <AnimatePresence>
               {collapsedSprites.length > 0 && (
                 <motion.div 
+                  id="tour-collapsed-section"
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
@@ -2997,7 +3045,7 @@ export default function App() {
                   
                   {/* Responsive grid for collapsed items */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {collapsedSprites.map((sprite) => {
+                    {collapsedSprites.map((sprite, cIdx) => {
                       const idx = sprites.findIndex(s => s.id === sprite.id);
                       const activeCat = CATEGORIES_LIST.find(c => c.id === sprite.categoryId) || CATEGORIES_LIST[0];
                       const calc = calculateSpritePrice(sprite);
@@ -3015,6 +3063,7 @@ export default function App() {
                       return (
                         <motion.div
                           key={sprite.id}
+                          id={cIdx === 0 ? "tour-card-collapsed" : undefined}
                           layout
                           initial={{ scale: 0.95, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
@@ -3200,7 +3249,10 @@ export default function App() {
                     <div className="absolute inset-1 border border-[#ebd6f7]/5 rounded-xl pointer-events-none"></div>
 
                     {/* Block Header */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#ebd6f7]/10 pb-4 mb-5 relative z-10 select-none">
+                    <div 
+                      id="tour-card-header" 
+                      className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#ebd6f7]/10 pb-4 mb-5 relative z-10 select-none"
+                    >
                       <div 
                         onClick={() => {
                           const isExpanded = expandedSprites[sprite.id] !== false;
@@ -3249,9 +3301,9 @@ export default function App() {
                         )}
                       </div>
                       
-                      <div className="flex items-center gap-3">
+                      <div id="tour-card-controls" className="flex items-center gap-3">
                         {/* Subtotal badge */}
-                        <div className="text-xs sm:text-sm font-bold text-[#f7f5ef] bg-[#12051d] px-3.5 py-1.5 rounded-xl border border-purple-500/20 shadow-inner font-mono">
+                        <div id="tour-item-price" className="text-xs sm:text-sm font-bold text-[#f7f5ef] bg-[#12051d] px-3.5 py-1.5 rounded-xl border border-purple-500/20 shadow-inner font-mono">
                           {calculated.isInvalidSize ? (
                             <span className="text-red-400 animate-pulse">! SIZE</span>
                           ) : (
@@ -3281,11 +3333,12 @@ export default function App() {
                     {/* Inputs Form Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 relative z-10">
                       {/* Column 1: Category Selection & Description */}
-                      <div className="space-y-4">
+                      <div id="tour-category" className="space-y-4">
                         <div>
                           <label className="block text-sm font-bold uppercase tracking-wider text-[#ebd6f7]/70 mb-1.5 flex items-center justify-between">
                             <span>{t.categoryLabel}</span>
                             <button
+                              id="tour-category-formula"
                               type="button"
                               onClick={() => toggleHelpState(blockKey)}
                               className="text-xs sm:text-sm font-bold text-purple-200 hover:text-white flex items-center gap-1.5 bg-[#1f0933] hover:bg-[#331152] px-3.5 py-1.5 rounded-xl border-2 border-purple-400/40 hover:border-purple-300 cursor-pointer transition-all active:scale-95 shadow-sm"
@@ -3298,6 +3351,7 @@ export default function App() {
                           {/* Beautiful Custom Dropdown Select replacing the crammed grid */}
                           <div className="relative mt-1.5">
                             <button
+                              id="tour-category-select"
                               type="button"
                               onClick={() => setOpenDropdownSpriteId(openDropdownSpriteId === sprite.id ? null : sprite.id)}
                               className="w-full bg-[#12051d] text-[#ebd6f7] hover:bg-[#1a0729] px-3 py-2.5 rounded-xl border-2 border-[#3d1a56] font-bold text-sm sm:text-base flex items-center justify-between transition-all shadow-inner relative z-20 cursor-pointer"
@@ -3358,7 +3412,7 @@ export default function App() {
                           </div>
 
                           {/* Animated Category Showcase with Black Hole Transition */}
-                          <div className="mt-3.5">
+                          <div id="tour-category-info" className="mt-3.5">
                             <CategoryShowcaseAnimation
                               catId={sprite.categoryId}
                               lang={lang}
@@ -3430,7 +3484,7 @@ export default function App() {
                       </div>
 
                       {/* Column 2: Dimensions & Predefined Presets */}
-                      <div className="space-y-4">
+                      <div id="tour-dimensions" className="space-y-4">
                         {sprite.categoryId === '7' ? (
                           // Minecraft-skins specific fields
                           <div>
@@ -3479,8 +3533,8 @@ export default function App() {
                               )}
                             </label>
 
-                            {/* Presets row selector */}
-                            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 mb-2.5 w-full">
+                             {/* Presets row selector */}
+                            <div id="tour-dim-presets" className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 mb-2 w-full">
                               {[
                                 { value: '16', label: '16' },
                                 { value: '32', label: '32' },
@@ -3496,10 +3550,10 @@ export default function App() {
                                     key={p.value}
                                     type="button"
                                     onClick={() => applyPresetSize(sprite.id, p.value)}
-                                    className={`px-1 py-2 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer text-center w-full ${
+                                    className={`px-1 py-2 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer text-center w-full active:scale-95 ${
                                       isSelected
-                                        ? 'bg-purple-500 text-white border-purple-300 shadow-sm'
-                                        : 'bg-[#12051d] text-[#ebd6f7]/80 border-[#3d1a56] hover:bg-[#1a0729] hover:text-white'
+                                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-2 border-purple-300 shadow-md scale-[1.02]'
+                                        : 'bg-[#12051d] text-[#ebd6f7]/80 border border-[#3d1a56] hover:bg-[#1a0729] hover:text-white'
                                     }`}
                                   >
                                     {p.label === 'Custom' ? (lang === 'ru' ? 'Свой' : 'Custom') : `${p.label}²`}
@@ -3508,104 +3562,123 @@ export default function App() {
                               })}
                             </div>
 
-                            {/* Tactile input step controls */}
-                            <div className="grid grid-cols-2 gap-3 mt-2.5">
-                              <div>
-                                <span className="block text-xs uppercase font-bold text-[#ebd6f7]/80 mb-1 font-mono">Width</span>
-                                <div className={`flex items-center bg-[#12051d] border-2 rounded-xl overflow-hidden focus-within:border-purple-300 transition-colors h-10 ${sprite.width > 1000 ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-[#3d1a56]'}`}>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const val = Math.max(1, sprite.width - 8);
-                                      updateSpriteField(sprite.id, 'width', val);
-                                      updateSpriteField(sprite.id, 'templateSize', 'custom');
-                                    }}
-                                    className="px-2.5 text-purple-400 hover:text-white hover:bg-white/5 active:scale-90 transition-all font-bold font-mono text-sm cursor-pointer select-none"
-                                  >
-                                    -
-                                  </button>
-                                  <input
-                                    type="number"
-                                    value={sprite.width === 0 ? '' : sprite.width}
-                                    onChange={(e) => {
-                                      const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
-                                      updateSpriteField(sprite.id, 'width', val);
-                                      updateSpriteField(sprite.id, 'templateSize', 'custom');
-                                    }}
-                                    onBlur={() => {
-                                      if (sprite.width < 1) {
-                                        updateSpriteField(sprite.id, 'width', 1);
-                                      }
-                                    }}
-                                    className="w-full bg-transparent text-purple-300 text-center font-bold font-mono focus:outline-none border-0 text-sm py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const val = sprite.width + 8;
-                                      updateSpriteField(sprite.id, 'width', val);
-                                      updateSpriteField(sprite.id, 'templateSize', 'custom');
-                                    }}
-                                    className="px-2.5 text-purple-400 hover:text-white hover:bg-white/5 active:scale-90 transition-all font-bold font-mono text-sm cursor-pointer select-none"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                                {sprite.width > 1000 && (
-                                  <span className="text-xs font-bold text-red-400 mt-1 block leading-tight">
-                                    {lang === 'ru' ? 'недопустимое значение' : 'invalid value'}
+                            {/* Streamlined active resolution indicator OR custom controls */}
+                            {sprite.templateSize !== 'custom' ? (
+                              <div id="tour-dim-custom" className="bg-[#12051d] border border-purple-500/30 rounded-xl px-3 py-2 flex items-center justify-between gap-2 mt-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                                  <span className="text-xs font-bold font-mono text-purple-200">
+                                    {lang === 'ru' ? 'Выбранный размер:' : 'Selected resolution:'} <strong className="text-white font-mono text-sm">{sprite.width}×{sprite.height} px</strong>
                                   </span>
-                                )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => updateSpriteField(sprite.id, 'templateSize', 'custom')}
+                                  className="text-xs font-bold text-cyan-300 hover:text-cyan-200 underline cursor-pointer font-mono shrink-0"
+                                >
+                                  {lang === 'ru' ? 'Настроить W×H' : 'Custom W×H'}
+                                </button>
                               </div>
+                            ) : (
+                              /* Tactile input step controls for Custom mode */
+                              <div className="grid grid-cols-2 gap-3 mt-2.5">
+                                <div>
+                                  <span className="block text-xs uppercase font-bold text-[#ebd6f7]/80 mb-1 font-mono">Width</span>
+                                  <div className={`flex items-center bg-[#12051d] border-2 rounded-xl overflow-hidden focus-within:border-purple-300 transition-colors h-10 ${sprite.width > 1000 ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-[#3d1a56]'}`}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const val = Math.max(1, sprite.width - 8);
+                                        updateSpriteField(sprite.id, 'width', val);
+                                        updateSpriteField(sprite.id, 'templateSize', 'custom');
+                                      }}
+                                      className="px-2.5 text-purple-400 hover:text-white hover:bg-white/5 active:scale-90 transition-all font-bold font-mono text-sm cursor-pointer select-none"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      value={sprite.width === 0 ? '' : sprite.width}
+                                      onChange={(e) => {
+                                        const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                                        updateSpriteField(sprite.id, 'width', val);
+                                        updateSpriteField(sprite.id, 'templateSize', 'custom');
+                                      }}
+                                      onBlur={() => {
+                                        if (sprite.width < 1) {
+                                          updateSpriteField(sprite.id, 'width', 1);
+                                        }
+                                      }}
+                                      className="w-full bg-transparent text-purple-300 text-center font-bold font-mono focus:outline-none border-0 text-sm py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const val = sprite.width + 8;
+                                        updateSpriteField(sprite.id, 'width', val);
+                                        updateSpriteField(sprite.id, 'templateSize', 'custom');
+                                      }}
+                                      className="px-2.5 text-purple-400 hover:text-white hover:bg-white/5 active:scale-90 transition-all font-bold font-mono text-sm cursor-pointer select-none"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                  {sprite.width > 1000 && (
+                                    <span className="text-xs font-bold text-red-400 mt-1 block leading-tight">
+                                      {lang === 'ru' ? 'недопустимое значение' : 'invalid value'}
+                                    </span>
+                                  )}
+                                </div>
 
-                              <div>
-                                <span className="block text-xs uppercase font-bold text-[#ebd6f7]/80 mb-1 font-mono">Height</span>
-                                <div className={`flex items-center bg-[#12051d] border-2 rounded-xl overflow-hidden focus-within:border-purple-300 transition-colors h-10 ${sprite.height > 1000 ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-[#3d1a56]'}`}>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const val = Math.max(1, sprite.height - 8);
-                                      updateSpriteField(sprite.id, 'height', val);
-                                      updateSpriteField(sprite.id, 'templateSize', 'custom');
-                                    }}
-                                    className="px-2.5 text-purple-400 hover:text-white hover:bg-white/5 active:scale-90 transition-all font-bold font-mono text-sm cursor-pointer select-none"
-                                  >
-                                    -
-                                  </button>
-                                  <input
-                                    type="number"
-                                    value={sprite.height === 0 ? '' : sprite.height}
-                                    onChange={(e) => {
-                                      const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
-                                      updateSpriteField(sprite.id, 'height', val);
-                                      updateSpriteField(sprite.id, 'templateSize', 'custom');
-                                    }}
-                                    onBlur={() => {
-                                      if (sprite.height < 1) {
-                                        updateSpriteField(sprite.id, 'height', 1);
-                                      }
-                                    }}
-                                    className="w-full bg-transparent text-purple-300 text-center font-bold font-mono focus:outline-none border-0 text-sm py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const val = sprite.height + 8;
-                                      updateSpriteField(sprite.id, 'height', val);
-                                      updateSpriteField(sprite.id, 'templateSize', 'custom');
-                                    }}
-                                    className="px-2.5 text-purple-400 hover:text-white hover:bg-white/5 active:scale-90 transition-all font-bold font-mono text-sm cursor-pointer select-none"
-                                  >
-                                    +
-                                  </button>
+                                <div>
+                                  <span className="block text-xs uppercase font-bold text-[#ebd6f7]/80 mb-1 font-mono">Height</span>
+                                  <div className={`flex items-center bg-[#12051d] border-2 rounded-xl overflow-hidden focus-within:border-purple-300 transition-colors h-10 ${sprite.height > 1000 ? 'border-red-500 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'border-[#3d1a56]'}`}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const val = Math.max(1, sprite.height - 8);
+                                        updateSpriteField(sprite.id, 'height', val);
+                                        updateSpriteField(sprite.id, 'templateSize', 'custom');
+                                      }}
+                                      className="px-2.5 text-purple-400 hover:text-white hover:bg-white/5 active:scale-90 transition-all font-bold font-mono text-sm cursor-pointer select-none"
+                                    >
+                                      -
+                                    </button>
+                                    <input
+                                      type="number"
+                                      value={sprite.height === 0 ? '' : sprite.height}
+                                      onChange={(e) => {
+                                        const val = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                                        updateSpriteField(sprite.id, 'height', val);
+                                        updateSpriteField(sprite.id, 'templateSize', 'custom');
+                                      }}
+                                      onBlur={() => {
+                                        if (sprite.height < 1) {
+                                          updateSpriteField(sprite.id, 'height', 1);
+                                        }
+                                      }}
+                                      className="w-full bg-transparent text-purple-300 text-center font-bold font-mono focus:outline-none border-0 text-sm py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const val = sprite.height + 8;
+                                        updateSpriteField(sprite.id, 'height', val);
+                                        updateSpriteField(sprite.id, 'templateSize', 'custom');
+                                      }}
+                                      className="px-2.5 text-purple-400 hover:text-white hover:bg-white/5 active:scale-90 transition-all font-bold font-mono text-sm cursor-pointer select-none"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                  {sprite.height > 1000 && (
+                                    <span className="text-xs font-bold text-red-400 mt-1 block leading-tight">
+                                      {lang === 'ru' ? 'недопустимое значение' : 'invalid value'}
+                                    </span>
+                                  )}
                                 </div>
-                                {sprite.height > 1000 && (
-                                  <span className="text-xs font-bold text-red-400 mt-1 block leading-tight">
-                                    {lang === 'ru' ? 'недопустимое значение' : 'invalid value'}
-                                  </span>
-                                )}
                               </div>
-                            </div>
+                            )}
 
                             {sprite.categoryId !== '7' && calculated.sizeFactor > activeCat.maxBaseSize && (
                               <div className="mt-2 text-xs text-amber-400 font-bold leading-relaxed border border-amber-500/20 bg-amber-500/5 px-3 py-2 rounded-lg flex items-center gap-2">
@@ -3674,7 +3747,7 @@ export default function App() {
                             </div>
                             
                             {/* Variation sprite count */}
-                            <div className="flex items-center justify-between gap-2 border-t border-[#ebd6f7]/10 pt-3">
+                            <div id="tour-qty-variants" className="flex items-center justify-between gap-2 border-t border-[#ebd6f7]/10 pt-3">
                               <span className="text-sm text-[#ebd6f7]/90 font-bold">
                                 {t.variantsSprites}
                               </span>
@@ -3713,7 +3786,7 @@ export default function App() {
                         </div>
 
                         {/* Design, Style & Perspective Options (Column 3) */}
-                        <div className="pt-2 space-y-2.5">
+                        <div id="tour-quality" className="pt-2 space-y-2.5">
                             <label className="block text-xs font-black uppercase tracking-wider text-[#ebd6f7]/80">
                               {lang === 'ru' ? 'Спецификация и ракурс:' : 'Spec & Projection:'}
                             </label>
@@ -3721,6 +3794,7 @@ export default function App() {
                             <div className="grid grid-cols-1 gap-2.5 w-full">
                               {/* 1. Design Creation Card */}
                               <div
+                                id="tour-concept-mode"
                                 role="button"
                                 tabIndex={0}
                                 onClick={() => updateSpriteField(sprite.id, 'designMode', sprite.designMode === 'scratch' ? 'reference' : 'scratch')}
@@ -3781,6 +3855,7 @@ export default function App() {
 
                               {/* 2. Style Mode Card */}
                               <div
+                                id="tour-style-select"
                                 role="button"
                                 tabIndex={0}
                                 onClick={() => updateSpriteField(sprite.id, 'styleMode', sprite.styleMode === 'specific' ? 'free' : 'specific')}
@@ -3842,6 +3917,7 @@ export default function App() {
                               {/* 3. Perspective View Card (Not shown for Minecraft Skins as they are natively 3D) */}
                               {sprite.categoryId !== '7' && (
                                 <div
+                                  id="tour-3d-toggle"
                                   role="button"
                                   tabIndex={0}
                                   onClick={() => updateSpriteField(sprite.id, 'isometry', !sprite.isometry)}
@@ -4013,8 +4089,9 @@ export default function App() {
 
                     {/* Animation Controls (If Category Supports It) */}
                     {activeCat.supportsAnimation && (
-                      <div className="mt-5 border-t border-[#ebd6f7]/10 pt-4">
+                      <div id="tour-animation" className="mt-5 border-t border-[#ebd6f7]/10 pt-4">
                         <button
+                          id="tour-anim-toggle"
                           type="button"
                           onClick={() => updateSpriteField(sprite.id, 'hasAnimation', !sprite.hasAnimation)}
                           className="flex items-center gap-2 mb-3 select-none text-left cursor-pointer group"
@@ -4042,14 +4119,16 @@ export default function App() {
                             >
                               <div className="bg-[#12051d] rounded-xl p-4 border-2 border-[#3d1a56] space-y-4 text-sm">
                                 {/* Beautiful Animated Custom Component for Animation Complexity */}
-                                <AnimationComplexitySelection
-                                  value={sprite.animComplexity || 'simple'}
-                                  onChange={(val) => updateSpriteField(sprite.id, 'animComplexity', val)}
-                                  lang={lang}
-                                  spriteId={sprite.id}
-                                  frames={calculated.frames}
-                                  totalComplexity={calculated.totalComplexity}
-                                />
+                                <div id="tour-anim-complexity">
+                                  <AnimationComplexitySelection
+                                    value={sprite.animComplexity || 'simple'}
+                                    onChange={(val) => updateSpriteField(sprite.id, 'animComplexity', val)}
+                                    lang={lang}
+                                    spriteId={sprite.id}
+                                    frames={calculated.frames}
+                                    totalComplexity={calculated.totalComplexity}
+                                  />
+                                </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-[#3d1a56]/50">
                                   <div>
@@ -4065,7 +4144,7 @@ export default function App() {
                                   </div>
 
                                   {sprite.frameMode === 'direct' ? (
-                                    <div>
+                                    <div id="tour-anim-frames">
                                       <span className="block text-[#ebd6f7] mb-1 font-semibold text-sm">{t.animFramesCount}</span>
                                       <div className="flex items-center bg-[#1a0729] border border-[#3d1a56] rounded-lg overflow-hidden h-8">
                                         <button
@@ -4233,7 +4312,7 @@ export default function App() {
                     </div>
 
                     {/* Individual sprite cost box */}
-                    <div className="mt-5 bg-[#12051d]/60 p-3.5 rounded-xl border border-[#3d1a56] flex flex-wrap justify-between items-center gap-2">
+                    <div id="tour-complexity" className="mt-5 bg-[#12051d]/60 p-3.5 rounded-xl border border-[#3d1a56] flex flex-wrap justify-between items-center gap-2">
                       <span className="text-xs text-[#ebd6f7]/80 font-mono">
                         {t.spriteAutoCalcNote}
                       </span>
@@ -4259,8 +4338,9 @@ export default function App() {
           </div>
 
           {/* Add block button */}
-          <div className="mt-8 relative z-10">
+          <div id="tour-manage" className="mt-8 relative z-10">
             <button
+              id="tour-add-btn"
               type="button"
               onClick={addSpriteBlock}
               className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white font-black text-sm uppercase py-4 rounded-2xl border-4 border-[#140620] shadow-[0_4px_15px_rgba(192,132,252,0.25)] hover:shadow-[0_4px_25px_rgba(192,132,252,0.45)] hover:scale-[1.005] transition-all active:translate-y-0.5 cursor-pointer flex items-center justify-center gap-2"
@@ -4271,7 +4351,7 @@ export default function App() {
           </div>
 
           {/* Global Order parameters */}
-          <div className="mt-12 bg-[#1a0729] rounded-2xl p-6 border-4 border-[#140620] relative overflow-hidden shadow-lg z-10">
+          <div id="tour-global" className="mt-12 bg-[#1a0729] rounded-2xl p-6 border-4 border-[#140620] relative overflow-hidden shadow-lg z-10">
             {/* Subtle internal grid border for global parameters */}
             <div className="absolute inset-1 border border-[#ebd6f7]/5 rounded-xl pointer-events-none"></div>
 
@@ -4287,6 +4367,7 @@ export default function App() {
                   <span>{t.queueUrgency}</span>
                 </label>
                 <button
+                  id="tour-priority-toggle"
                   type="button"
                   onClick={() => {
                     if (speedRate === 1.25) {
@@ -4345,6 +4426,7 @@ export default function App() {
                   <span>{t.noDeadlineBtn}</span>
                 </label>
                 <button
+                  id="tour-no-deadline"
                   type="button"
                   disabled={CURRENT_LOAD_STATUS === 2}
                   onClick={() => {
@@ -4413,7 +4495,7 @@ export default function App() {
               </div>
             </div>
 
-                        <div className="mt-10 mb-8 border-t border-[#ebd6f7]/10 pt-10 relative z-10">
+                        <div id="tour-log" className="mt-10 mb-8 border-t border-[#ebd6f7]/10 pt-10 relative z-10">
               <CalculationLog 
                 lang={lang} 
                 orderCalculations={orderCalculations} 
@@ -4501,8 +4583,8 @@ export default function App() {
             </div>
 
             {/* Results widgets box */}
-            <div className="mt-8 pt-6 border-t border-[#ebd6f7]/15 grid grid-cols-1 sm:grid-cols-2 gap-5 text-center relative z-10">
-              <div className="bg-[#12051d] p-5 rounded-2xl border-2 border-[#3d1a56] shadow-inner relative overflow-hidden flex flex-col justify-center items-center">
+            <div id="tour-summary" className="mt-8 pt-6 border-t border-[#ebd6f7]/15 grid grid-cols-1 sm:grid-cols-2 gap-5 text-center relative z-10">
+              <div id="tour-summary-price" className="bg-[#12051d] p-5 rounded-2xl border-2 border-[#3d1a56] shadow-inner relative overflow-hidden flex flex-col justify-center items-center">
                 <div className="text-sm font-bold text-[#ebd6f7]/70 uppercase tracking-widest mb-1.5 flex items-center gap-1.5 justify-center">
                   <span>{t.totalPriceLabel}</span>
                   {orderCalculations.hasBulkDiscount && (
@@ -4535,7 +4617,7 @@ export default function App() {
             </div>
 
             {/* Bulk discount progress bar */}
-            <div className="mt-6 bg-[#12051d] p-5 rounded-2xl border-2 border-[#3d1a56] shadow-inner relative overflow-hidden text-left z-10">
+            <div id="tour-summary-discount" className="mt-6 bg-[#12051d] p-5 rounded-2xl border-2 border-[#3d1a56] shadow-inner relative overflow-hidden text-left z-10">
               <div className="flex justify-between items-center mb-2.5">
                 <span className="text-sm font-bold text-[#ebd6f7]/90 uppercase tracking-wider flex items-center gap-1.5">
                   <span className="relative flex h-2.5 w-2.5">
@@ -4773,6 +4855,7 @@ export default function App() {
                   {/* Visual Document Controls */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full font-sans">
                     <button
+                      id="tour-summary-spec"
                       type="button"
                       onClick={() => generateTZ(false, true)}
                       className="w-full bg-purple-500 hover:bg-purple-400 text-white font-bold text-sm uppercase px-4 py-3 rounded-xl border-2 border-[#140620] transition-all cursor-pointer active:scale-95 shadow flex items-center justify-center gap-1.5 h-12 font-sans"
@@ -5372,6 +5455,49 @@ export default function App() {
               {toast.message}
             </p>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Interactive 9-Step Tutorial Modal */}
+      <InteractiveTutorial
+        isOpen={showTutorialModal}
+        onClose={() => {
+          setShowTutorialModal(false);
+          setTutorialDismissed(true);
+          try {
+            localStorage.setItem('tutorial_dismissed', 'true');
+          } catch (e) {}
+        }}
+        lang={lang}
+        onCollapseCard={(collapsed) => {
+          if (sprites.length > 0) {
+            const targetId = sprites[0].id;
+            const wantExpanded = !collapsed;
+            setExpandedSprites(prev => {
+              if (prev[targetId] === wantExpanded) return prev;
+              return { ...prev, [targetId]: wantExpanded };
+            });
+          }
+        }}
+      />
+
+      {/* Floating 30-Second Helper Prompt */}
+      <AnimatePresence>
+        {showFloatingTutorialPrompt && !showTutorialModal && (
+          <FloatingTutorialPrompt
+            lang={lang}
+            onStart={() => {
+              setShowFloatingTutorialPrompt(false);
+              setShowTutorialModal(true);
+            }}
+            onDismiss={() => {
+              setShowFloatingTutorialPrompt(false);
+              setTutorialDismissed(true);
+              try {
+                localStorage.setItem('tutorial_dismissed', 'true');
+              } catch (e) {}
+            }}
+          />
         )}
       </AnimatePresence>
     </div>
